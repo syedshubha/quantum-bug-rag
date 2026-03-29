@@ -205,3 +205,16 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Project-specific exclusions
+# Raw datasets (never commit external benchmark data)
+data/bugs4q/*.json
+data/bugs4q/*.jsonl
+_tmp_bugs4q_clone/
+
+# Pipeline run outputs (generated; not versioned)
+outputs/*.jsonl
+outputs/*.json
+
+# Local config with secrets
+config.yaml

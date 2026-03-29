@@ -1,0 +1,45 @@
+# quantum-bug-rag configuration example
+# Copy this file to config.yaml and fill in your values.
+# Never commit config.yaml (it is excluded by .gitignore).
+
+# ── LLM backend ─────────────────────────────────────────────────────────────
+llm:
+  # Supported backends: "mock", "openai", "gemini"
+  backend: mock
+
+  # OpenAI settings (used when backend = "openai")
+  openai:
+    model: gpt-4o
+    # API key is read from the OPENAI_API_KEY environment variable; do not set it here.
+    max_tokens: 1024
+    temperature: 0.0
+
+  # Google Gemini settings (used when backend = "gemini")
+  gemini:
+    model: gemini-1.5-pro
+    # API key is read from the GOOGLE_API_KEY environment variable; do not set it here.
+    max_tokens: 1024
+    temperature: 0.0
+
+# ── Retrieval ────────────────────────────────────────────────────────────────
+retrieval:
+  top_k: 5
+  similarity_metric: cosine  # cosine | euclidean
+
+# ── Paths ────────────────────────────────────────────────────────────────────
+paths:
+  knowledge_base: knowledge_base/
+  bugs4q_dir: data/bugs4q/
+  outputs_dir: outputs/
+
+# ── Evaluation ───────────────────────────────────────────────────────────────
+evaluation:
+  # "subset" runs a small smoke-test sample; "full" runs the complete dataset.
+  mode: subset
+  subset_size: 20
+  # Metrics to compute
+  metrics:
+    - accuracy
+    - f1_macro
+    - precision_macro
+    - recall_macro

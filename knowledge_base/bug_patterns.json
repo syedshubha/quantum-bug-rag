@@ -1,0 +1,102 @@
+[
+  {
+    "pattern_id": "BP001",
+    "name": "CNOT Self-Loop",
+    "taxonomy_class": "incorrect_qubit_mapping",
+    "description": "A CNOT (CX) gate is applied with the same qubit index as both control and target. Qiskit raises an error or silently produces an incorrect circuit depending on the backend.",
+    "example_code": "qc.cx(0, 0)  # control == target — always wrong",
+    "fix_hint": "Ensure control and target qubits are distinct: qc.cx(0, 1).",
+    "source": "manual",
+    "tags": ["cx", "cnot", "qubit_mapping"]
+  },
+  {
+    "pattern_id": "BP002",
+    "name": "Missing Measurement Before Classical Read",
+    "taxonomy_class": "measurement_error",
+    "description": "A classical register is read or conditioned upon without a preceding measurement gate, leaving the register in its initialised (all-zero) state and producing incorrect conditional logic.",
+    "example_code": "qc.x(0).c_if(cr, 1)  # cr was never populated by a measure call",
+    "fix_hint": "Add qc.measure(qr, cr) before any c_if or classical read.",
+    "source": "manual",
+    "tags": ["measurement", "classical", "c_if"]
+  },
+  {
+    "pattern_id": "BP003",
+    "name": "Incorrect Rotation Angle (Off-by-Pi)",
+    "taxonomy_class": "incorrect_operator",
+    "description": "A rotation gate such as RX, RY, or RZ is given an angle that is off by a factor of pi or 2*pi, resulting in the wrong quantum state. This often occurs when mixing degree and radian conventions.",
+    "example_code": "qc.ry(90, 0)  # likely intended math.pi/2 ≈ 1.5708, not 90 radians",
+    "fix_hint": "Use radian values (e.g., math.pi / 2) rather than degree values.",
+    "source": "manual",
+    "tags": ["rotation", "angle", "ry", "rx", "rz"]
+  },
+  {
+    "pattern_id": "BP004",
+    "name": "Barrier Omission Before Measurement",
+    "taxonomy_class": "missing_barrier",
+    "description": "Omitting a barrier before measurement allows circuit optimisers to reorder or cancel gates that should precede the measurement, silently changing the measured distribution.",
+    "example_code": "qc.h(0)\nqc.measure(0, 0)  # no barrier; optimiser may remove h",
+    "fix_hint": "Insert qc.barrier() immediately before qc.measure() when gate ordering must be preserved.",
+    "source": "manual",
+    "tags": ["barrier", "measurement", "optimisation"]
+  },
+  {
+    "pattern_id": "BP005",
+    "name": "Initialisation to Wrong Basis State",
+    "taxonomy_class": "wrong_initial_state",
+    "description": "The circuit is initialised using initialize() or reset() with an incorrect state vector, producing a starting superposition that does not match the intended algorithm.",
+    "example_code": "qc.initialize([1, 0, 0, 0], [0, 1])  # two-qubit state but single list index",
+    "fix_hint": "Verify that the state vector length is 2^n for n qubits and that the correct indices are passed.",
+    "source": "manual",
+    "tags": ["initialize", "state_vector", "initial_state"]
+  },
+  {
+    "pattern_id": "BP006",
+    "name": "Qubit Index Out of Range",
+    "taxonomy_class": "incorrect_qubit_mapping",
+    "description": "A gate or measurement references a qubit index that exceeds the size of the quantum register, causing a runtime IndexError or silent wraparound on some backends.",
+    "example_code": "qc = QuantumCircuit(2)\nqc.h(2)  # valid indices are 0 and 1",
+    "fix_hint": "Ensure all qubit indices satisfy 0 <= index < circuit_size.",
+    "source": "manual",
+    "tags": ["index", "qubit", "range"]
+  },
+  {
+    "pattern_id": "BP007",
+    "name": "Incorrect Toffoli (CCX) Target",
+    "taxonomy_class": "incorrect_qubit_mapping",
+    "description": "The Toffoli (CCX) gate is applied with the target qubit coinciding with one of the control qubits, violating the gate's precondition and producing wrong results.",
+    "example_code": "qc.ccx(0, 1, 0)  # target (0) == control (0)",
+    "fix_hint": "Use three distinct qubit indices: qc.ccx(0, 1, 2).",
+    "source": "manual",
+    "tags": ["toffoli", "ccx", "qubit_mapping"]
+  },
+  {
+    "pattern_id": "BP008",
+    "name": "Statevector Simulator Backend Error",
+    "taxonomy_class": "measurement_error",
+    "description": "The statevector simulator is used with mid-circuit measurements or reset operations, which are not supported, causing a backend execution error.",
+    "example_code": "backend = Aer.get_backend('statevector_simulator')\n# circuit contains qc.reset(0) — unsupported",
+    "fix_hint": "Use the 'aer_simulator' with the statevector method, or remove mid-circuit operations.",
+    "source": "manual",
+    "tags": ["statevector", "simulator", "mid_circuit", "reset"]
+  },
+  {
+    "pattern_id": "BP009",
+    "name": "Phase Kickback Misapplication",
+    "taxonomy_class": "incorrect_operator",
+    "description": "Phase kickback is applied in the wrong direction (control and target swapped), negating the intended phase and corrupting the algorithm output (common in Grover, QPE).",
+    "example_code": "# Oracle intended to kick phase onto control qubit\nqc.cx(target, control)  # swapped: kicks onto wrong qubit",
+    "fix_hint": "Review the oracle circuit diagram and swap control and target if phase is not propagating correctly.",
+    "source": "manual",
+    "tags": ["phase_kickback", "oracle", "grover", "qpe"]
+  },
+  {
+    "pattern_id": "BP010",
+    "name": "Incorrect Number of Qubits for Algorithm",
+    "taxonomy_class": "wrong_initial_state",
+    "description": "The circuit is constructed with fewer qubits than required by the quantum algorithm (e.g., QFT, Grover), causing incorrect ancilla or workspace allocation.",
+    "example_code": "# QFT on n qubits requires n ancilla; circuit has n-1",
+    "fix_hint": "Double-check the qubit count required by the target algorithm, including any ancilla registers.",
+    "source": "manual",
+    "tags": ["qubit_count", "ancilla", "qft", "grover"]
+  }
+]
