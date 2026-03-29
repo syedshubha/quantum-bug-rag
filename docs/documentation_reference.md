@@ -1,3 +1,24 @@
+# Documentation Reference
+
+This file presents the three primary documentation files side by side so that
+they can be reviewed and copied together.  Each section is the verbatim content
+of the corresponding file; use the section anchors below to jump directly to
+the one you need.
+
+| Section | Source file |
+|---------|------------|
+| [1 — Project README](#1--project-readme) | `README.md` |
+| [2 — Data Documentation](#2--data-documentation) | `data/README.md` |
+| [3 — Knowledge-Base Documentation](#3--knowledge-base-documentation) | `knowledge_base/README.md` |
+
+---
+
+## 1 — Project README
+
+> **Source:** [`README.md`](../README.md)
+
+---
+
 # quantum-bug-rag
 
 A modular, research-grade Python repository for retrieval-augmented LLM-based bug detection and classification in Qiskit programs.  
@@ -7,7 +28,7 @@ Developed for **CSC 7135** — Quantum Software Testing and Analysis.
 
 ---
 
-## Table of Contents
+### Table of Contents
 
 1. [Project Overview](#project-overview)
 2. [Repository Structure](#repository-structure)
@@ -25,11 +46,10 @@ Developed for **CSC 7135** — Quantum Software Testing and Analysis.
 10. [Extension Points](#extension-points)
 11. [Leakage Control and Evaluation Splits](#leakage-control-and-evaluation-splits)
 12. [License](#license)
-13. [Documentation Reference](docs/documentation_reference.md) ← all three docs side by side, ready to copy
 
 ---
 
-## Project Overview
+### Project Overview
 
 We investigate whether retrieval-augmented generation (RAG) improves LLM-based detection and classification of bugs in Qiskit quantum programs.  
 We compare three experimental modes:
@@ -53,7 +73,7 @@ Each mode produces structured diagnostics:
 
 ---
 
-## Repository Structure
+### Repository Structure
 
 ```
 quantum-bug-rag/
@@ -101,7 +121,7 @@ quantum-bug-rag/
 
 ---
 
-## Installation
+### Installation
 
 We recommend a dedicated virtual environment.
 
@@ -127,7 +147,7 @@ export GOOGLE_API_KEY="..."
 
 ---
 
-## Dataset Roles
+### Dataset Roles
 
 > **Important:** We use two distinct external datasets with clearly separated roles.
 
@@ -140,11 +160,11 @@ export GOOGLE_API_KEY="..."
 
 ---
 
-## Dataset Preparation
+### Dataset Preparation
 
 Neither Bugs4Q nor Bugs-QCP is bundled in this repository. Follow the steps below to prepare each dataset locally.
 
-### Bugs4Q
+#### Bugs4Q
 
 ```bash
 # Clone the Bugs4Q repository and normalise it into data/bugs4q/
@@ -156,7 +176,7 @@ python scripts/prepare_bugs4q.py --smoke-test --output-dir data/bugs4q/
 
 See `data/README.md` for full instructions.
 
-### Bugs-QCP Knowledge-Base Enrichment
+#### Bugs-QCP Knowledge-Base Enrichment
 
 ```bash
 # After downloading the Bugs-QCP archive from Zenodo 5834281:
@@ -169,11 +189,11 @@ See `knowledge_base/README.md` for the expected JSON schema.
 
 ---
 
-## Running Experiments
+### Running Experiments
 
 All scripts accept `--config` to point at a custom YAML configuration file (default: `config.yaml`).
 
-### Prompt-Only Baseline
+#### Prompt-Only Baseline
 
 ```bash
 python scripts/run_prompt_only.py \
@@ -182,7 +202,7 @@ python scripts/run_prompt_only.py \
     --config config.yaml
 ```
 
-### RAG Pipeline
+#### RAG Pipeline
 
 ```bash
 python scripts/run_rag.py \
@@ -192,7 +212,7 @@ python scripts/run_rag.py \
     --config config.yaml
 ```
 
-### Static Baseline
+#### Static Baseline
 
 ```bash
 python scripts/run_static_baseline.py \
@@ -202,7 +222,7 @@ python scripts/run_static_baseline.py \
 
 > Note: The static baseline is a lightweight placeholder using rule-based heuristics. It is **not** a full re-implementation of LintQ or any other published quantum linter.
 
-### Subset Evaluation
+#### Subset Evaluation
 
 For quick iteration on a small subset of Bugs4Q samples:
 
@@ -215,7 +235,7 @@ python scripts/run_subset_eval.py \
 
 ---
 
-## Outputs and Logs
+### Outputs and Logs
 
 Each run writes a timestamped JSONL file to `outputs/`. Each line is a structured diagnostic:
 
@@ -238,7 +258,7 @@ See `outputs/README.md` for the complete output schema.
 
 ---
 
-## Knowledge Base
+### Knowledge Base
 
 The `knowledge_base/` directory ships with starter content:
 
@@ -249,7 +269,7 @@ Run `prepare_bugsqcp_kb.py` to enrich the knowledge base with additional entries
 
 ---
 
-## Running Tests
+### Running Tests
 
 ```bash
 pytest tests/ -v
@@ -265,7 +285,7 @@ Tests use the mock LLM backend and in-memory synthetic data; no external APIs or
 
 ---
 
-## Leakage Control and Evaluation Splits
+### Leakage Control and Evaluation Splits
 
 When running full experiments with Bugs4Q, we apply strict train/eval split discipline:
 
@@ -277,7 +297,7 @@ See `docs/methodology.md` for details.
 
 ---
 
-## Extension Points
+### Extension Points
 
 | Component | How to extend |
 |-----------|--------------|
@@ -289,6 +309,150 @@ See `docs/methodology.md` for details.
 
 ---
 
-## License
+### License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](../LICENSE).
+
+---
+
+## 2 — Data Documentation
+
+> **Source:** [`data/README.md`](../data/README.md)
+
+---
+
+# Data Directory
+
+This directory stores locally prepared datasets.  **No raw external dataset
+files are committed to this repository.**
+
+## Subdirectories
+
+| Path | Contents |
+|------|----------|
+| `bugs4q/` | Normalised Bugs4Q samples (populated by `scripts/prepare_bugs4q.py`). |
+
+## Dataset Roles
+
+| Dataset | Role |
+|---------|------|
+| **Bugs4Q** | Primary benchmark and evaluation dataset. All reported metrics are computed on Bugs4Q. |
+| **Bugs-QCP** | Secondary corpus for knowledge-base enrichment and taxonomy grounding only. Not used as an evaluation dataset. |
+
+## Obtaining Bugs4Q
+
+Bugs4Q is an executable benchmark of real Qiskit bugs maintained at
+<https://github.com/Z-928/Bugs4Q>.  To prepare it:
+
+```bash
+python scripts/prepare_bugs4q.py --output-dir data/bugs4q/
+```
+
+This clones the upstream repository and converts its contents into the
+`BugSample` JSON schema under `data/bugs4q/`.
+
+### Smoke-Test Mode
+
+For pipeline infrastructure validation only (no real data required):
+
+```bash
+python scripts/prepare_bugs4q.py --smoke-test --output-dir data/bugs4q/
+```
+
+> ⚠️ Synthetic smoke-test samples must **never** be used when reporting
+> benchmark results.  They exist solely to validate that the pipeline runs
+> end-to-end without errors.
+
+## Obtaining Bugs-QCP
+
+Bugs-QCP is available from Zenodo at <https://zenodo.org/records/5834281>.
+Download the archive, extract it, then run:
+
+```bash
+python scripts/prepare_bugsqcp_kb.py \
+    --input-dir /path/to/bugsqcp/ \
+    --output-dir knowledge_base/
+```
+
+This does **not** copy raw Bugs-QCP files into this repository; it only
+enriches the knowledge base with normalised pattern entries.
+
+## Split Discipline
+
+When running full Bugs4Q evaluations, maintain a strict training/evaluation
+split.  The knowledge base must not contain any samples from the evaluation
+split.  See `docs/methodology.md` for details.
+
+---
+
+## 3 — Knowledge-Base Documentation
+
+> **Source:** [`knowledge_base/README.md`](../knowledge_base/README.md)
+
+---
+
+# Knowledge Base
+
+This directory contains the local knowledge base used by the RAG pipeline for
+bug-pattern retrieval and taxonomy grounding.
+
+## Files
+
+| File | Description |
+|------|-------------|
+| `bug_patterns.json` | Starter bug-pattern entries derived from manual curation and Bugs-QCP-derived patterns. |
+| `taxonomy.json` | Starter taxonomy for quantum bug classification. |
+
+## Schema
+
+### `bug_patterns.json`
+
+A JSON array of objects matching the `BugPattern` Pydantic model (`src/schemas.py`):
+
+```json
+{
+  "pattern_id": "BP001",
+  "name": "CNOT Self-Loop",
+  "taxonomy_class": "incorrect_qubit_mapping",
+  "description": "...",
+  "example_code": "...",
+  "fix_hint": "...",
+  "source": "manual | bugsqcp | ...",
+  "tags": ["cx", "qubit_mapping"]
+}
+```
+
+### `taxonomy.json`
+
+A JSON array of objects matching the `TaxonomyEntry` Pydantic model:
+
+```json
+{
+  "class_id": "incorrect_operator",
+  "name": "Incorrect Operator",
+  "description": "...",
+  "parent_class": null,
+  "examples": ["..."]
+}
+```
+
+## Enriching the Knowledge Base
+
+To add Bugs-QCP-derived entries, download the Bugs-QCP archive from
+[Zenodo 5834281](https://zenodo.org/records/5834281) and run:
+
+```bash
+python scripts/prepare_bugsqcp_kb.py \
+    --input-dir /path/to/bugsqcp/ \
+    --output-dir knowledge_base/
+```
+
+The script normalises each entry to the `BugPattern` schema and merges it into
+`bug_patterns.json` without overwriting existing manually-curated entries.
+
+## Leakage Note
+
+The knowledge base must be constructed from the **Bugs-QCP corpus** and the
+**Bugs4Q training split only**.  Evaluation-split Bugs4Q samples must never
+appear in the knowledge base or be used to populate retrieved context during
+evaluation.  See `docs/methodology.md` for details.
