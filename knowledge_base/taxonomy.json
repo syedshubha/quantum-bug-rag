@@ -1,0 +1,68 @@
+[
+  {
+    "class_id": "incorrect_operator",
+    "name": "Incorrect Operator",
+    "description": "The wrong quantum gate or operator is applied to a qubit, including incorrect rotation angles, wrong gate type (e.g., X vs. Z), or misapplied phase operations.",
+    "parent_class": null,
+    "examples": [
+      "Applying RY(90) degrees instead of RY(pi/2) radians.",
+      "Using X gate where Z gate is needed.",
+      "Phase gate with incorrect angle parameter."
+    ]
+  },
+  {
+    "class_id": "incorrect_qubit_mapping",
+    "name": "Incorrect Qubit Mapping",
+    "description": "A gate references the wrong qubit index, the same qubit as both control and target, or qubits that are out of range for the circuit.",
+    "parent_class": null,
+    "examples": [
+      "qc.cx(0, 0) — control equals target.",
+      "qc.h(5) on a 3-qubit circuit.",
+      "Swapped control and target in CX gate."
+    ]
+  },
+  {
+    "class_id": "missing_barrier",
+    "name": "Missing Barrier",
+    "description": "A barrier instruction is absent where it is needed to prevent circuit optimisers from reordering or cancelling gates that are semantically ordered by the algorithm.",
+    "parent_class": null,
+    "examples": [
+      "No barrier between state preparation and measurement.",
+      "Optimiser cancels H–H pair due to missing barrier."
+    ]
+  },
+  {
+    "class_id": "wrong_initial_state",
+    "name": "Wrong Initial State",
+    "description": "The quantum register is initialised to an incorrect state, either through a wrong state vector, wrong number of qubits, or incorrect use of the initialise() API.",
+    "parent_class": null,
+    "examples": [
+      "initialize() called with a 2-element vector on a 2-qubit register.",
+      "Missing reset before re-use of ancilla qubit."
+    ]
+  },
+  {
+    "class_id": "measurement_error",
+    "name": "Measurement Error",
+    "description": "The measurement operation is incorrectly placed, targets the wrong qubit or classical bit, is missing entirely, or is performed with an incompatible backend.",
+    "parent_class": null,
+    "examples": [
+      "Classical register conditioned on before any measurement.",
+      "measure_all() called on statevector simulator."
+    ]
+  },
+  {
+    "class_id": "no_bug_detected",
+    "name": "No Bug Detected",
+    "description": "The static baseline found no matching heuristic patterns. The code may be correct, or the bug may be outside the scope of the implemented rules.",
+    "parent_class": null,
+    "examples": []
+  },
+  {
+    "class_id": "unknown",
+    "name": "Unknown",
+    "description": "The bug could not be assigned to a known taxonomy class. Used as a fallback when the LLM or baseline is uncertain.",
+    "parent_class": null,
+    "examples": []
+  }
+]
