@@ -1,0 +1,61 @@
+{
+  "version": "1.0",
+  "description": "Top-level bug taxonomy for Qiskit programs, derived from the Bugs4Q benchmark paper.",
+  "source": "Zhao et al., 'Bugs4Q: A Benchmark of Real Bugs for Quantum Programs', ASE 2021",
+  "classes": [
+    {
+      "id": "incorrect_gate",
+      "label": "Incorrect Gate",
+      "description": "The wrong gate type is applied at a given point in the circuit (e.g., X instead of Z, H instead of I).",
+      "examples": ["using X where Z was intended", "applying RZ with wrong angle"]
+    },
+    {
+      "id": "wrong_qubit_order",
+      "label": "Wrong Qubit Order",
+      "description": "The correct gate is applied but the qubit arguments are in the wrong order (control/target swap, register mismatch).",
+      "examples": ["cx(1, 0) instead of cx(0, 1)", "ccx target in wrong position"]
+    },
+    {
+      "id": "missing_measurement",
+      "label": "Missing Measurement",
+      "description": "The circuit is not measured before execution, or the measurement is applied to the wrong qubits/bits.",
+      "examples": ["no .measure() call", ".measure_all() called on wrong circuit"]
+    },
+    {
+      "id": "circuit_structure",
+      "label": "Circuit Structure",
+      "description": "The overall topology or ordering of gates in the circuit is incorrect (e.g., missing a layer, extra barrier, wrong depth).",
+      "examples": ["barrier before any gates", "gate applied after measurement"]
+    },
+    {
+      "id": "initialisation",
+      "label": "Initialisation",
+      "description": "The QuantumCircuit or registers are initialised incorrectly (wrong qubit count, wrong initial state).",
+      "examples": ["QuantumCircuit(0)", "wrong initial state vector"]
+    },
+    {
+      "id": "classical_control",
+      "label": "Classical Control",
+      "description": "Classical register size or classical-if conditions are wrong.",
+      "examples": ["ClassicalRegister size < measured qubits", "c_if on wrong bit"]
+    },
+    {
+      "id": "runtime_error",
+      "label": "Runtime / API Error",
+      "description": "Code that triggers a Qiskit or Python runtime error due to incorrect API usage.",
+      "examples": ["qubit index out of range", "accessing transpiled layout incorrectly"]
+    },
+    {
+      "id": "other",
+      "label": "Other",
+      "description": "A bug that does not fit neatly into any of the above categories.",
+      "examples": []
+    },
+    {
+      "id": "unknown",
+      "label": "Unknown",
+      "description": "Used when the pipeline cannot determine or has not yet determined the bug class.",
+      "examples": []
+    }
+  ]
+}

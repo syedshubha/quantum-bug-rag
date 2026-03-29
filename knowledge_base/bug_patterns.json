@@ -1,0 +1,66 @@
+[
+  {
+    "id": "BP001",
+    "taxonomy_class": "missing_measurement",
+    "title": "Missing measurement at end of circuit",
+    "description": "A QuantumCircuit is built and executed but no .measure() or .measure_all() call is present. Qiskit simulators return an empty counts dictionary in this case, which is almost always unintentional.",
+    "code_snippet": "# Buggy: no measurement\nqc = QuantumCircuit(2, 2)\nqc.h(0)\nqc.cx(0, 1)\n# Missing: qc.measure([0, 1], [0, 1])\njob = execute(qc, backend)",
+    "keywords": ["measure", "measure_all", "counts", "execute", "empty counts"]
+  },
+  {
+    "id": "BP002",
+    "taxonomy_class": "wrong_qubit_order",
+    "title": "Swapped control and target qubits in CX gate",
+    "description": "The CX (CNOT) gate expects (control, target). Swapping them produces a logically different circuit that yields incorrect measurement statistics.",
+    "code_snippet": "# Buggy: control and target swapped\nqc.cx(1, 0)  # intended cx(0, 1)",
+    "keywords": ["cx", "cnot", "control", "target", "qubit", "order", "swap"]
+  },
+  {
+    "id": "BP003",
+    "taxonomy_class": "initialisation",
+    "title": "QuantumCircuit initialised with incorrect qubit count",
+    "description": "Passing the wrong number of qubits to QuantumCircuit() means subsequent gate applications may reference out-of-range qubit indices, raising a CircuitError at runtime.",
+    "code_snippet": "# Buggy: only 1 qubit but code applies 2-qubit gate\nqc = QuantumCircuit(1)\nqc.cx(0, 1)  # IndexError: qubit index 1 out of range",
+    "keywords": ["QuantumCircuit", "qubit", "register", "size", "initialise", "init", "CircuitError"]
+  },
+  {
+    "id": "BP004",
+    "taxonomy_class": "incorrect_gate",
+    "title": "Use of deprecated single-qubit gate names (u1/u2/u3)",
+    "description": "Qiskit deprecated u1, u2, u3 in favour of p, u, and u respectively. Code using the old names may fail or produce warnings on newer Qiskit versions.",
+    "code_snippet": "# Deprecated\nqc.u1(theta, 0)   # use qc.p(theta, 0)\nqc.u2(phi, lam, 0) # use qc.u(pi/2, phi, lam, 0)\nqc.u3(theta, phi, lam, 0) # use qc.u(theta, phi, lam, 0)",
+    "keywords": ["u1", "u2", "u3", "deprecated", "gate", "p gate", "unitary"]
+  },
+  {
+    "id": "BP005",
+    "taxonomy_class": "circuit_structure",
+    "title": "Barrier placed before any gates are added",
+    "description": "Placing a barrier on an empty circuit or before any gates have been applied serves no purpose and sometimes indicates a structural copy-paste error.",
+    "code_snippet": "qc = QuantumCircuit(3)\nqc.barrier()  # no gates yet – probably a mistake",
+    "keywords": ["barrier", "empty", "structure", "order"]
+  },
+  {
+    "id": "BP006",
+    "taxonomy_class": "classical_control",
+    "title": "Classical register size smaller than number of measured qubits",
+    "description": "If the ClassicalRegister has fewer bits than the number of qubits being measured, Qiskit raises a CircuitError. This often results from off-by-one errors or copy-pasting from a smaller circuit.",
+    "code_snippet": "# Buggy: 3 qubits, only 2 classical bits\nqr = QuantumRegister(3)\ncr = ClassicalRegister(2)\nqc = QuantumCircuit(qr, cr)\nqc.measure(qr, cr)  # CircuitError: register size mismatch",
+    "keywords": ["ClassicalRegister", "QuantumRegister", "size", "measure", "mismatch", "bits"]
+  },
+  {
+    "id": "BP007",
+    "taxonomy_class": "runtime_error",
+    "title": "Accessing undefined circuit attribute after transpilation",
+    "description": "After transpile(), the circuit layout may differ from the original. Accessing qubits by original index without accounting for the new layout leads to incorrect results or KeyErrors.",
+    "code_snippet": "from qiskit.compiler import transpile\ntransipiled = transpile(qc, backend)\n# Buggy: assumes qubit 0 is still qubit 0 after transpilation\nprint(transpiled.qubits[0])",
+    "keywords": ["transpile", "layout", "qubit", "index", "mapping", "transpilation"]
+  },
+  {
+    "id": "BP008",
+    "taxonomy_class": "wrong_qubit_order",
+    "title": "Incorrect Toffoli (CCX) qubit argument order",
+    "description": "The Toffoli gate ccx(control1, control2, target). Misordering the three arguments produces a different unitary and wrong results.",
+    "code_snippet": "# Buggy: target supplied before second control\nqc.ccx(0, 2, 1)  # intended ccx(0, 1, 2)",
+    "keywords": ["ccx", "toffoli", "control", "target", "three-qubit", "order"]
+  }
+]

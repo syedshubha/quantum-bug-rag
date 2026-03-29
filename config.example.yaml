@@ -1,0 +1,62 @@
+# config.example.yaml
+# Copy this file to config.yaml and fill in your settings.
+# I never commit config.yaml (it is in .gitignore) to keep API keys private.
+
+# ---------------------------------------------------------------------------
+# LLM settings
+# ---------------------------------------------------------------------------
+llm:
+  # backend: "mock" | "openai" | "gemini"
+  # Use "mock" to test the pipeline without any API calls.
+  backend: mock
+
+  # kwargs are passed to the chosen LLMClient constructor.
+  kwargs:
+    # For OpenAI:
+    # model: gpt-4o
+    # temperature: 0.0
+    # max_tokens: 512
+
+    # For Gemini:
+    # model: gemini-1.5-pro
+    # temperature: 0.0
+
+    # For Mock (override default likelihood):
+    bug_likelihood: 0.7
+
+# ---------------------------------------------------------------------------
+# Retrieval settings
+# ---------------------------------------------------------------------------
+retrieval:
+  top_k: 3
+  # patterns_path: knowledge_base/bug_patterns.json  # default
+
+# ---------------------------------------------------------------------------
+# Dataset settings
+# ---------------------------------------------------------------------------
+dataset:
+  data_dir: data/bugs4q          # path to prepared Bugs4Q data
+  split: all                     # "all" | "buggy" | "clean"
+  max_items: null                # set to an integer for subset experiments
+
+# ---------------------------------------------------------------------------
+# Output settings
+# ---------------------------------------------------------------------------
+output:
+  base_dir: outputs
+  log_level: INFO
+
+# ---------------------------------------------------------------------------
+# Evaluation settings
+# ---------------------------------------------------------------------------
+evaluation:
+  threshold: 0.5    # bug_likelihood threshold for binary detection
+
+# ---------------------------------------------------------------------------
+# API keys (DO NOT put real keys here)
+# ---------------------------------------------------------------------------
+# Set these as environment variables instead:
+#   export OPENAI_API_KEY=sk-...
+#   export GEMINI_API_KEY=AIza...
+#
+# The pipeline reads them with os.environ.get(); keys here are ignored.
