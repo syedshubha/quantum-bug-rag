@@ -1,3 +1,8 @@
+# Raw dataset directories (never commit; use preparation scripts to populate)
+data/bugs4q/
+data/bugs_qcp/
+knowledge_base/store/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
