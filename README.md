@@ -25,6 +25,7 @@ Developed for **CSC 7135** — Quantum Software Testing and Analysis.
 10. [Extension Points](#extension-points)
 11. [Leakage Control and Evaluation Splits](#leakage-control-and-evaluation-splits)
 12. [License](#license)
+13. [Documentation Reference](docs/documentation_reference.md) ← all three docs side by side, ready to copy
 
 ---
 
