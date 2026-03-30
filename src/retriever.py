@@ -54,10 +54,21 @@ class BugPatternRetriever:
 
     @staticmethod
     def _pattern_to_text(p: BugPattern) -> str:
-        """Concatenate pattern fields into a single retrieval document."""
-        return " ".join(
-            filter(None, [p.name, p.description, p.fix_hint, p.example_code, " ".join(p.tags)])
-        )
+        """Concatenate and weight pattern fields into a retrieval document."""
+        tags_text = " ".join(p.tags)
+        # Duplicate concise high-signal fields to give them slightly more TF-IDF weight.
+        weighted_fields = [
+            p.name,
+            p.name,
+            p.taxonomy_class,
+            p.taxonomy_class,
+            p.description,
+            p.fix_hint,
+            tags_text,
+            tags_text,
+            p.example_code,
+        ]
+        return " ".join(filter(None, weighted_fields))
 
     # ── Retrieval ─────────────────────────────────────────────────────────────
 

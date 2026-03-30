@@ -1,0 +1,16 @@
+{
+  "alias_map": {
+    "qubit mapping": "incorrect_qubit_mapping",
+    "qubit index": "incorrect_qubit_mapping",
+    "index": "incorrect_qubit_mapping",
+    "operator": "incorrect_operator",
+    "gate": "incorrect_operator",
+    "wrong gate": "incorrect_operator",
+    "barrier": "missing_barrier",
+    "initial": "wrong_initial_state",
+    "statevector": "wrong_initial_state",
+    "measurement": "measurement_error",
+    "measure": "measurement_error"
+  },
+  "observed_upstream_type_counts": {}
+}

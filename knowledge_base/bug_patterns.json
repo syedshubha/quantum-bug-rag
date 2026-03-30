@@ -7,7 +7,11 @@
     "example_code": "qc.cx(0, 0)  # control == target — always wrong",
     "fix_hint": "Ensure control and target qubits are distinct: qc.cx(0, 1).",
     "source": "manual",
-    "tags": ["cx", "cnot", "qubit_mapping"]
+    "tags": [
+      "cx",
+      "cnot",
+      "qubit_mapping"
+    ]
   },
   {
     "pattern_id": "BP002",
@@ -17,7 +21,11 @@
     "example_code": "qc.x(0).c_if(cr, 1)  # cr was never populated by a measure call",
     "fix_hint": "Add qc.measure(qr, cr) before any c_if or classical read.",
     "source": "manual",
-    "tags": ["measurement", "classical", "c_if"]
+    "tags": [
+      "measurement",
+      "classical",
+      "c_if"
+    ]
   },
   {
     "pattern_id": "BP003",
@@ -27,7 +35,13 @@
     "example_code": "qc.ry(90, 0)  # likely intended math.pi/2 ≈ 1.5708, not 90 radians",
     "fix_hint": "Use radian values (e.g., math.pi / 2) rather than degree values.",
     "source": "manual",
-    "tags": ["rotation", "angle", "ry", "rx", "rz"]
+    "tags": [
+      "rotation",
+      "angle",
+      "ry",
+      "rx",
+      "rz"
+    ]
   },
   {
     "pattern_id": "BP004",
@@ -37,7 +51,11 @@
     "example_code": "qc.h(0)\nqc.measure(0, 0)  # no barrier; optimiser may remove h",
     "fix_hint": "Insert qc.barrier() immediately before qc.measure() when gate ordering must be preserved.",
     "source": "manual",
-    "tags": ["barrier", "measurement", "optimisation"]
+    "tags": [
+      "barrier",
+      "measurement",
+      "optimisation"
+    ]
   },
   {
     "pattern_id": "BP005",
@@ -47,7 +65,11 @@
     "example_code": "qc.initialize([1, 0, 0, 0], [0, 1])  # two-qubit state but single list index",
     "fix_hint": "Verify that the state vector length is 2^n for n qubits and that the correct indices are passed.",
     "source": "manual",
-    "tags": ["initialize", "state_vector", "initial_state"]
+    "tags": [
+      "initialize",
+      "state_vector",
+      "initial_state"
+    ]
   },
   {
     "pattern_id": "BP006",
@@ -57,7 +79,11 @@
     "example_code": "qc = QuantumCircuit(2)\nqc.h(2)  # valid indices are 0 and 1",
     "fix_hint": "Ensure all qubit indices satisfy 0 <= index < circuit_size.",
     "source": "manual",
-    "tags": ["index", "qubit", "range"]
+    "tags": [
+      "index",
+      "qubit",
+      "range"
+    ]
   },
   {
     "pattern_id": "BP007",
@@ -67,7 +93,11 @@
     "example_code": "qc.ccx(0, 1, 0)  # target (0) == control (0)",
     "fix_hint": "Use three distinct qubit indices: qc.ccx(0, 1, 2).",
     "source": "manual",
-    "tags": ["toffoli", "ccx", "qubit_mapping"]
+    "tags": [
+      "toffoli",
+      "ccx",
+      "qubit_mapping"
+    ]
   },
   {
     "pattern_id": "BP008",
@@ -77,7 +107,12 @@
     "example_code": "backend = Aer.get_backend('statevector_simulator')\n# circuit contains qc.reset(0) — unsupported",
     "fix_hint": "Use the 'aer_simulator' with the statevector method, or remove mid-circuit operations.",
     "source": "manual",
-    "tags": ["statevector", "simulator", "mid_circuit", "reset"]
+    "tags": [
+      "statevector",
+      "simulator",
+      "mid_circuit",
+      "reset"
+    ]
   },
   {
     "pattern_id": "BP009",
@@ -87,7 +122,12 @@
     "example_code": "# Oracle intended to kick phase onto control qubit\nqc.cx(target, control)  # swapped: kicks onto wrong qubit",
     "fix_hint": "Review the oracle circuit diagram and swap control and target if phase is not propagating correctly.",
     "source": "manual",
-    "tags": ["phase_kickback", "oracle", "grover", "qpe"]
+    "tags": [
+      "phase_kickback",
+      "oracle",
+      "grover",
+      "qpe"
+    ]
   },
   {
     "pattern_id": "BP010",
@@ -97,6 +137,11 @@
     "example_code": "# QFT on n qubits requires n ancilla; circuit has n-1",
     "fix_hint": "Double-check the qubit count required by the target algorithm, including any ancilla registers.",
     "source": "manual",
-    "tags": ["qubit_count", "ancilla", "qft", "grover"]
+    "tags": [
+      "qubit_count",
+      "ancilla",
+      "qft",
+      "grover"
+    ]
   }
 ]
