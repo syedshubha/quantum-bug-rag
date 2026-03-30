@@ -228,3 +228,6 @@ outputs/**
 
 _tmp_bugs4q_clone/
 config.yaml
+
+# Local smoke backups
+data/smoke_backup/

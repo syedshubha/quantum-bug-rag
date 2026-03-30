@@ -24,7 +24,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.benchmark_runner import BenchmarkRunner
-from src.dataset_loader import load_bugs4q
+from src.dataset_loader import describe_dataset, load_bugs4q_dataset
 from src.utils import get_logger, load_config
 
 logger = get_logger("run_rag")
@@ -43,12 +43,14 @@ def main() -> None:
     # Allow CLI override of KB path.
     config.setdefault("paths", {})["knowledge_base"] = args.kb_dir
 
-    samples = load_bugs4q(args.data_dir)
-    if not samples:
-        logger.error(
-            "No samples found in '%s'. Run scripts/prepare_bugs4q.py first.", args.data_dir
-        )
+    try:
+        dataset = load_bugs4q_dataset(args.data_dir, dataset="active")
+    except (FileNotFoundError, ValueError) as exc:
+        logger.error("Failed to load dataset: %s", exc)
         sys.exit(1)
+
+    logger.info("RAG dataset: %s", describe_dataset(dataset))
+    samples = dataset.samples
 
     if args.limit:
         samples = samples[: args.limit]

@@ -33,8 +33,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.benchmark_runner import BenchmarkRunner
-from src.dataset_loader import generate_smoke_samples, load_bugs4q
-from src.evaluate import print_summary
+from src.benchmark_splits import load_split_ids
+from src.dataset_loader import describe_dataset, load_bugs4q_dataset
 from src.utils import get_logger, load_config
 
 logger = get_logger("run_subset_eval")
@@ -52,7 +52,13 @@ def main() -> None:
     parser.add_argument(
         "--smoke-test",
         action="store_true",
-        help="Use synthetic smoke-test data (infrastructure validation only).",
+        help="Load the prepared synthetic smoke-test dataset instead of the active dataset.",
+    )
+    parser.add_argument(
+        "--dataset",
+        choices=["active", "real", "synthetic"],
+        default="active",
+        help="Prepared dataset selection (default: active).",
     )
     parser.add_argument(
         "--modes",
@@ -61,25 +67,81 @@ def main() -> None:
         default=MODES,
         help="Modes to run (default: all three).",
     )
+    parser.add_argument(
+        "--labelled-only",
+        action="store_true",
+        help="Run the subset only on samples that have ground_truth labels.",
+    )
+    parser.add_argument(
+        "--split",
+        choices=["none", "train", "dev", "eval"],
+        default="none",
+        help="Optional split to sample from (requires splits file).",
+    )
+    parser.add_argument(
+        "--splits-file",
+        default="splits.json",
+        help="Split file path relative to --data-dir unless absolute.",
+    )
     args = parser.parse_args()
 
     config = load_config(args.config)
     config.setdefault("paths", {})["knowledge_base"] = args.kb_dir
 
-    if args.smoke_test:
+    dataset_selection = "synthetic" if args.smoke_test else args.dataset
+    try:
+        dataset = load_bugs4q_dataset(args.data_dir, dataset=dataset_selection)
+    except (FileNotFoundError, ValueError) as exc:
+        logger.error("Failed to load dataset: %s", exc)
+        sys.exit(1)
+
+    logger.info("Subset evaluation dataset: %s", describe_dataset(dataset))
+    run_data_profile = "synthetic data"
+    if dataset.synthetic:
         logger.warning(
-            "⚠  Using SYNTHETIC smoke-test data. "
-            "Results are for pipeline validation only."
+            "Using synthetic smoke-test data. Results are for pipeline validation only."
         )
-        samples = generate_smoke_samples(n=args.subset_size)
     else:
-        all_samples = load_bugs4q(args.data_dir)
-        if not all_samples:
-            logger.error(
-                "No samples found in '%s'. Run prepare_bugs4q.py first.", args.data_dir
-            )
+        if dataset.labelled_count == dataset.record_count:
+            run_data_profile = "real labelled data"
+        elif dataset.labelled_count > 0:
+            run_data_profile = "real partially unlabeled data"
+        else:
+            run_data_profile = "real unlabeled data"
+        logger.info("Using %s from %s", run_data_profile, dataset.dataset_path)
+
+    samples = dataset.samples
+    if args.split != "none":
+        splits_path = Path(args.splits_file)
+        if not splits_path.is_absolute():
+            splits_path = Path(args.data_dir) / splits_path
+        try:
+            split_ids = load_split_ids(splits_path, args.split)
+        except (FileNotFoundError, ValueError) as exc:
+            logger.error("Failed to load split '%s': %s", args.split, exc)
             sys.exit(1)
-        samples = all_samples[: args.subset_size]
+        samples = [sample for sample in samples if sample.sample_id in split_ids]
+        logger.info("Applied split=%s from %s -> %d samples", args.split, splits_path, len(samples))
+
+    if args.labelled_only:
+        before = len(samples)
+        samples = [sample for sample in samples if sample.ground_truth is not None]
+        logger.info(
+            "Filtered to labelled samples: %d -> %d",
+            before,
+            len(samples),
+        )
+
+    samples = samples[: args.subset_size]
+    if not samples:
+        logger.error("No samples available after filtering for subset evaluation.")
+        sys.exit(1)
+    if len(samples) < args.subset_size:
+        logger.warning(
+            "Requested subset size %d but dataset only has %d samples.",
+            args.subset_size,
+            len(samples),
+        )
 
     summaries = {}
     for mode in args.modes:
