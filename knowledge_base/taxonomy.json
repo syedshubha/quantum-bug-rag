@@ -7,7 +7,12 @@
     "examples": [
       "Applying RY(90) degrees instead of RY(pi/2) radians.",
       "Using X gate where Z gate is needed.",
-      "Phase gate with incorrect angle parameter."
+      "Phase gate with incorrect angle parameter.",
+      "Bugs-QCP: Incorrect Numerical Computation",
+      "Bugs-QCP: Flaky Test, Misconfiguration, Misconfiguration - Testing",
+      "Bugs-QCP: API Misuse - Internal, Typo",
+      "Bugs-QCP: Incorrect IR - Wrong Information",
+      "Bugs-QCP: Type Problem"
     ]
   },
   {
@@ -18,7 +23,12 @@
     "examples": [
       "qc.cx(0, 0) — control equals target.",
       "qc.h(5) on a 3-qubit circuit.",
-      "Swapped control and target in CX gate."
+      "Swapped control and target in CX gate.",
+      "Bugs-QCP: Wrong Concept, Wrong Identifier",
+      "Bugs-QCP: Wrong Identifier",
+      "Bugs-QCP: Overlooked Qubit Order",
+      "Bugs-QCP: Typo, Wrong Identifier",
+      "Bugs-QCP: Overlooked Qubit Order, Incorrect Application Logic"
     ]
   },
   {
@@ -28,7 +38,8 @@
     "parent_class": null,
     "examples": [
       "No barrier between state preparation and measurement.",
-      "Optimiser cancels H–H pair due to missing barrier."
+      "Optimiser cancels H–H pair due to missing barrier.",
+      "Bugs-QCP: Barrier Related"
     ]
   },
   {
@@ -38,7 +49,9 @@
     "parent_class": null,
     "examples": [
       "initialize() called with a 2-element vector on a 2-qubit register.",
-      "Missing reset before re-use of ancilla qubit."
+      "Missing reset before re-use of ancilla qubit.",
+      "Bugs-QCP: Memory Leak",
+      "Bugs-QCP: API Outdated - Internal"
     ]
   },
   {
@@ -48,7 +61,8 @@
     "parent_class": null,
     "examples": [
       "Classical register conditioned on before any measurement.",
-      "measure_all() called on statevector simulator."
+      "measure_all() called on statevector simulator.",
+      "Bugs-QCP: Numerical Error"
     ]
   },
   {
@@ -63,6 +77,15 @@
     "name": "Unknown",
     "description": "The bug could not be assigned to a known taxonomy class. Used as a fallback when the LLM or baseline is uncertain.",
     "parent_class": null,
-    "examples": []
+    "examples": [
+      "Bugs-QCP: Missing Error Handling",
+      "Bugs-QCP: Overlooked Corner Case",
+      "Bugs-QCP: Wrong Concept",
+      "Bugs-QCP: API Outdated - External",
+      "Bugs-QCP: Incorrect Application Logic, Overlooked Corner Case",
+      "Bugs-QCP: Overlooked Corner Case, Misconfiguration, Misconfiguration - Testing",
+      "Bugs-QCP: Incorrect Application Logic",
+      "Bugs-QCP: Wrong Concept, Overlooked Corner Case"
+    ]
   }
 ]
