@@ -176,6 +176,44 @@ class GeminiLLMClient(BaseLLMClient):
         response = self._model.generate_content(prompt)
         return response.text or ""
 
+# ── GitHub Models client ─────────────────────────────────────────────────────
+class GitHubModelsLLMClient(BaseLLMClient):
+    """
+    LLM client using GitHub Models (Azure inference endpoint).
+    Requires GITHUB_TOKEN environment variable.
+    """
+
+    def __init__(self, model: str = "gpt-4o-mini", max_tokens: int = 1024, temperature: float = 0.0) -> None:
+        import requests  # local import to avoid hard dependency
+
+        token = os.environ.get("GITHUB_TOKEN")
+        if not token:
+            raise RuntimeError("GITHUB_TOKEN environment variable is not set.")
+
+        self._url = "https://models.inference.ai.azure.com/chat/completions"
+        self._headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        self._model = model
+        self._max_tokens = max_tokens
+        self._temperature = temperature
+        self._requests = requests
+
+    def complete(self, messages: list[dict[str, str]], **kwargs: Any) -> str:
+        payload = {
+            "model": self._model,
+            "messages": messages,
+            "max_tokens": kwargs.get("max_tokens", self._max_tokens),
+            "temperature": kwargs.get("temperature", self._temperature),
+        }
+
+        response = self._requests.post(self._url, headers=self._headers, json=payload)
+        response.raise_for_status()
+
+        data = response.json()
+        return data["choices"][0]["message"]["content"] or ""
+
 
 # ── Factory ───────────────────────────────────────────────────────────────────
 
@@ -207,7 +245,14 @@ def build_llm_client(config: dict) -> BaseLLMClient:
             max_tokens=cfg.get("max_tokens", 1024),
             temperature=cfg.get("temperature", 0.0),
         )
+    if backend == "github_models":
+        cfg = llm_cfg.get("github_models", {})
+        return GitHubModelsLLMClient(
+            model=cfg.get("model", "gpt-4o-mini"),
+            max_tokens=cfg.get("max_tokens", 1024),
+            temperature=cfg.get("temperature", 0.0),
+      )
 
     raise ValueError(
-        f"Unknown LLM backend '{backend}'. Choose from: mock, openai, gemini."
+        f"Unknown LLM backend '{backend}'. Choose from: mock, openai, gemini, github_models"
     )
