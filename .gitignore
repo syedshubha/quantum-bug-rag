@@ -231,3 +231,6 @@ config.yaml
 
 # Local smoke backups
 data/smoke_backup/
+
+# External local datasets
+external_data/
