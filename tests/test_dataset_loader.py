@@ -153,3 +153,61 @@ def test_prepare_cli_is_thin_wrapper() -> None:
     assert "from src.data_prep import prepare_bugs4q_dataset" in content
     assert "def prepare_real_dataset(" not in content
     assert "def prepare_smoke_dataset(" not in content
+
+
+def test_inspect_dataset_can_export_unlabelled_cases(tmp_path: Path) -> None:
+    data_dir = tmp_path / "bugs4q"
+    real_record = BugSample(
+        sample_id="bugs4q_0000",
+        source="bugs4q",
+        code="qc.h(0)",
+        ground_truth="incorrect_operator",
+        metadata={"synthetic": False, "path": "Aer/bug_1/buggy.py", "collection": "Aer"},
+    ).model_dump()
+    unlabelled_record = BugSample(
+        sample_id="bugs4q_0001",
+        source="bugs4q",
+        code="qc.cx(0, 1)",
+        ground_truth=None,
+        metadata={"synthetic": False, "path": "Program/1999.py", "collection": "Program"},
+    ).model_dump()
+    _write_jsonl(data_dir / REAL_DATASET_FILENAME, [real_record, unlabelled_record])
+    _write_jsonl(data_dir / SYNTHETIC_DATASET_FILENAME, [])
+    (data_dir / ACTIVE_DATASET_FILENAME).write_text(
+        json.dumps(
+            {
+                "active_file": REAL_DATASET_FILENAME,
+                "dataset_type": "real",
+                "synthetic": False,
+                "sample_source": "bugs4q",
+                "record_count": 2,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    export_path = tmp_path / "unlabelled.jsonl"
+    script_path = Path(__file__).resolve().parents[1] / "scripts" / "inspect_dataset.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--data-dir",
+            str(data_dir),
+            "--dataset",
+            "active",
+            "--show-unlabelled",
+            "1",
+            "--export-unlabelled",
+            str(export_path),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "Unlabelled sample previews:" in result.stdout
+    assert "Exported unlabelled cases: 1" in result.stdout
+    exported_rows = [json.loads(line) for line in export_path.read_text(encoding="utf-8").splitlines() if line]
+    assert len(exported_rows) == 1
+    assert exported_rows[0]["sample_id"] == "bugs4q_0001"

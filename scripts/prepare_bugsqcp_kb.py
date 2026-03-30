@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 from src.bugsqcp_ingest import ingest_bugsqcp_into_kb
@@ -35,13 +36,18 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    report = ingest_bugsqcp_into_kb(
-        input_dir=args.input_dir,
-        output_dir=args.output_dir,
-        dry_run=args.dry_run,
-    )
+    try:
+        report = ingest_bugsqcp_into_kb(
+            input_dir=args.input_dir,
+            output_dir=args.output_dir,
+            dry_run=args.dry_run,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        sys.exit(1)
 
     print("Bugs-QCP ingestion completed")
+    print(f"- discovered_files: {report.discovered_files}")
     print(f"- discovered_records: {report.discovered_records}")
     print(f"- imported_records: {report.imported_records}")
     print(f"- skipped_records: {report.skipped_records}")

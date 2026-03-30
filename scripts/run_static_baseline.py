@@ -33,10 +33,16 @@ def main() -> None:
     parser.add_argument("--data-dir", default="data/bugs4q/", help="Bugs4Q data directory.")
     parser.add_argument("--output-dir", default="outputs/", help="Output directory.")
     parser.add_argument("--limit", type=int, default=None, help="Cap number of samples (dev use).")
+    parser.add_argument(
+        "--dataset",
+        choices=["active", "real", "synthetic"],
+        default="active",
+        help="Dataset artifact to evaluate (default: active).",
+    )
     args = parser.parse_args()
 
     try:
-        dataset = load_bugs4q_dataset(args.data_dir, dataset="active")
+        dataset = load_bugs4q_dataset(args.data_dir, dataset=args.dataset)
     except (FileNotFoundError, ValueError) as exc:
         logger.error("Failed to load dataset: %s", exc)
         sys.exit(1)

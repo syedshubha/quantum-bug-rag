@@ -10,6 +10,7 @@ evaluation.
 from __future__ import annotations
 
 import argparse
+import json
 import random
 import sys
 from collections import Counter
@@ -46,6 +47,17 @@ def main() -> None:
         type=int,
         default=42,
         help="Random seed for previews.",
+    )
+    parser.add_argument(
+        "--show-unlabelled",
+        type=int,
+        default=0,
+        help="Number of unlabelled sample entries to print.",
+    )
+    parser.add_argument(
+        "--export-unlabelled",
+        default=None,
+        help="Optional JSONL path to export all unlabelled sample IDs and metadata.",
     )
     args = parser.parse_args()
 
@@ -90,6 +102,27 @@ def main() -> None:
             preview = sample.code.splitlines()[0][:100] if sample.code else ""
             label = sample.ground_truth or "<missing>"
             print(f"  {sample.sample_id} | label={label} | preview={preview}")
+
+    unlabelled_samples = [sample for sample in dataset.samples if sample.ground_truth is None]
+    if args.show_unlabelled > 0:
+        print("Unlabelled sample previews:")
+        for sample in unlabelled_samples[: args.show_unlabelled]:
+            rel_path = sample.metadata.get("path", "<unknown>")
+            print(f"  {sample.sample_id} | path={rel_path}")
+
+    if args.export_unlabelled:
+        export_path = Path(args.export_unlabelled)
+        export_path.parent.mkdir(parents=True, exist_ok=True)
+        with export_path.open("w", encoding="utf-8") as fh:
+            for sample in unlabelled_samples:
+                row = {
+                    "sample_id": sample.sample_id,
+                    "path": sample.metadata.get("path"),
+                    "collection": sample.metadata.get("collection"),
+                    "dataset_type": dataset.dataset_type,
+                }
+                fh.write(json.dumps(row) + "\n")
+        print(f"Exported unlabelled cases: {len(unlabelled_samples)} -> {export_path}")
 
 
 if __name__ == "__main__":

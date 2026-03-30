@@ -115,7 +115,7 @@ def test_split_generation_is_deterministic(tmp_path: Path) -> None:
     assert payload_a["split_counts"] == {"train": 6, "dev": 2, "eval": 2}
 
 
-def test_run_subset_eval_can_skip_unlabelled(tmp_path: Path) -> None:
+def test_run_subset_eval_defaults_to_labelled_only(tmp_path: Path) -> None:
     data_dir = tmp_path / "data"
     output_dir = tmp_path / "outputs"
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -169,7 +169,6 @@ def test_run_subset_eval_can_skip_unlabelled(tmp_path: Path) -> None:
             "3",
             "--modes",
             "static",
-            "--labelled-only",
             "--output-dir",
             str(output_dir),
         ],
@@ -179,5 +178,66 @@ def test_run_subset_eval_can_skip_unlabelled(tmp_path: Path) -> None:
     )
 
     merged_output = result.stdout + "\n" + result.stderr
-    assert "Filtered to labelled samples: 3 -> 2" in merged_output
+    assert "Default benchmark filter to labelled samples: 3 -> 2" in merged_output
     assert re.search(r"static\s+2\s+", result.stdout)
+
+
+def test_run_subset_eval_can_include_unlabelled_when_requested(tmp_path: Path) -> None:
+    data_dir = tmp_path / "data"
+    output_dir = tmp_path / "outputs"
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    records = [
+        BugSample(
+            sample_id="bugs4q_0000",
+            source="bugs4q",
+            code="qc.cx(0, 0)\n",
+            ground_truth="incorrect_qubit_mapping",
+            metadata={"synthetic": False, "path": "Aer/bug_1/buggy.py"},
+        ).model_dump(),
+        BugSample(
+            sample_id="bugs4q_0001",
+            source="bugs4q",
+            code="qc.h(0)\n",
+            ground_truth=None,
+            metadata={"synthetic": False, "path": "Program/1999.py"},
+        ).model_dump(),
+    ]
+
+    with (data_dir / REAL_DATASET_FILENAME).open("w", encoding="utf-8") as fh:
+        for record in records:
+            fh.write(json.dumps(record) + "\n")
+    write_active_dataset_manifest(
+        data_dir,
+        active_file=REAL_DATASET_FILENAME,
+        dataset_type="real",
+        synthetic=False,
+        sample_source="bugs4q",
+        record_count=len(records),
+    )
+
+    script_path = Path(__file__).resolve().parents[1] / "scripts" / "run_subset_eval.py"
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(script_path),
+            "--data-dir",
+            str(data_dir),
+            "--dataset",
+            "active",
+            "--subset-size",
+            "2",
+            "--modes",
+            "static",
+            "--include-unlabelled",
+            "--output-dir",
+            str(output_dir),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    merged_output = result.stdout + "\n" + result.stderr
+    assert "Default benchmark filter to labelled samples" not in merged_output
+    assert "Subset Evaluation Summary" in result.stdout
