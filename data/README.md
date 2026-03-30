@@ -25,8 +25,17 @@ Bugs4Q is an executable benchmark of real Qiskit bugs maintained at
 python scripts/prepare_bugs4q.py --output-dir data/bugs4q/
 ```
 
-This clones the upstream repository and converts its contents into the
+This clones the upstream repository and converts benchmark candidates into the
 `BugSample` JSON schema under `data/bugs4q/`.
+
+The prepared directory keeps real and smoke-test data separate:
+
+- `samples.real.jsonl`
+- `samples.synthetic.jsonl`
+- `active_dataset.json`
+
+Use `python scripts/inspect_dataset.py --data-dir data/bugs4q/` to confirm
+which prepared dataset is active before running evaluations.
 
 ### Smoke-Test Mode
 
