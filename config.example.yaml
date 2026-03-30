@@ -21,6 +21,13 @@ llm:
     max_tokens: 1024
     temperature: 0.0
 
+  # GitHub Models settings (used when backend = "github_models")
+  github_models:
+    model: gpt-4o-mini
+    # API key is read from the GITHUB_TOKEN environment variable; do not set it here.
+    max_tokens: 1024
+    temperature: 0.0
+
 # ── Retrieval ────────────────────────────────────────────────────────────────
 retrieval:
   top_k: 5
