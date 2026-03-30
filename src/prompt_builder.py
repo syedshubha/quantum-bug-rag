@@ -17,7 +17,10 @@ from .schemas import BugPattern, BugSample, TaxonomyEntry
 _SYSTEM_PROMPT = (
     "You are an expert in quantum software engineering and Qiskit programming. "
     "Your task is to analyse a Qiskit Python code snippet and produce a structured "
-    "bug diagnostic. Respond ONLY with a valid JSON object matching the schema:\n\n"
+    "bug diagnostic. Return exactly one valid JSON object and nothing else."
+    "Do not include markdown or extra text.\n\n"
+
+    "The JSON schema is:\n"
     "{\n"
     '  "bug_likelihood": <float 0.0–1.0>,\n'
     '  "taxonomy_class": <string>,\n'
@@ -77,7 +80,7 @@ def build_rag_prompt(
         f"{context_block}\n\n"
         "## Code Snippet to Analyse\n\n"
         f"```python\n{sample.code}\n```\n\n"
-        "Using the retrieved context above, produce a structured bug diagnostic."
+        "Using the retrieved context above, produce a structured bug diagnostic. Use the retrieved context as reference only.s"
     )
     return [
         {"role": "system", "content": _SYSTEM_PROMPT},
