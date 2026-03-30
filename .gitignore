@@ -218,3 +218,13 @@ outputs/*.json
 
 # Local config with secrets
 config.yaml
+
+# Stronger project-local ignores
+data/bugs4q/**
+!data/README.md
+
+outputs/**
+!outputs/README.md
+
+_tmp_bugs4q_clone/
+config.yaml
