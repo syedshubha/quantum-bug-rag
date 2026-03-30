@@ -264,6 +264,18 @@ pytest tests/ -v --cov=src --cov-report=term-missing
 Tests use the mock LLM backend and in-memory synthetic data; no external APIs or datasets are required.
 
 ---
+## Reproducible Benchmark Runner
+
+We provide a pilot runner script to execute multiple benchmark modes in a unified and reproducible way.
+
+Example:
+
+```bash
+python scripts/reproducible_runner.py --limit 3
+```
+
+---
+
 
 ## Leakage Control and Evaluation Splits
 
