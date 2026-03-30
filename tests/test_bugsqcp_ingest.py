@@ -339,3 +339,18 @@ def test_ingest_ignores_old_dataset_versions(tmp_path: Path) -> None:
     # If old_dataset_versions/ were parsed the junk CSV would add no useful rows
     # but the discovered_files count would increase to >1.
     assert report.discovered_files == 1
+
+
+def test_ingest_finds_csv_inside_nested_extracted_root(tmp_path: Path) -> None:
+    """When --input-dir points to an outer directory (e.g. extracted/), the
+    ingester should still locate annotation_bugs.csv nested inside it."""
+    outer = tmp_path / "extracted"
+    outer.mkdir()
+    root, kb_dir = _make_real_layout(outer)
+
+    # Point the ingester at the outer directory, not the inner root
+    report = ingest_bugsqcp_into_kb(input_dir=outer, output_dir=kb_dir)
+
+    assert report.discovered_files == 1
+    assert report.discovered_records == 3
+    assert report.imported_records == 3

@@ -17,8 +17,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--input-dir",
         type=Path,
-        default=Path("data/bugsqcp"),
-        help="Directory containing Bugs-QCP JSON/CSV files.",
+        default=Path("external_data/bugsqcp/extracted"),
+        help="Root of the extracted Bugs-QCP archive (contains annotation_bugs.csv under artifacts/).",
     )
     parser.add_argument(
         "--output-dir",
