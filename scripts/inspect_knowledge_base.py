@@ -41,8 +41,14 @@ def main() -> None:
     print(f"- invalid_entries: {summary['invalid_entries']}")
     print(f"- duplicate_ids: {summary['duplicate_ids']}")
     print(f"- invalid_entry_indices: {summary['invalid_entry_indices']}")
+    print(f"- missing_required_fields: {summary['missing_required_fields']}")
+    print(f"- source_role_counts: {summary['source_role_counts']}")
     print(f"- by_source: {summary['by_source']}")
     print(f"- by_taxonomy_class: {summary['by_taxonomy_class']}")
+    print(f"- taxonomy_defined_classes: {summary['taxonomy_defined_classes']}")
+    print(f"- taxonomy_covered_classes: {summary['taxonomy_covered_classes']}")
+    print(f"- taxonomy_missing_classes: {summary['taxonomy_missing_classes']}")
+    print(f"- sample_imported_entries: {summary['sample_imported_entries']}")
 
 
 if __name__ == "__main__":

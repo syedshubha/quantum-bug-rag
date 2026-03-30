@@ -70,7 +70,12 @@ def main() -> None:
     parser.add_argument(
         "--labelled-only",
         action="store_true",
-        help="Run the subset only on samples that have ground_truth labels.",
+        help="Deprecated alias; benchmark mode defaults to labelled-only.",
+    )
+    parser.add_argument(
+        "--include-unlabelled",
+        action="store_true",
+        help="Include unlabelled samples in subset selection (non-benchmark exploratory mode).",
     )
     parser.add_argument(
         "--split",
@@ -123,11 +128,15 @@ def main() -> None:
         samples = [sample for sample in samples if sample.sample_id in split_ids]
         logger.info("Applied split=%s from %s -> %d samples", args.split, splits_path, len(samples))
 
-    if args.labelled_only:
+    labelled_only = not args.include_unlabelled
+    if args.labelled_only and args.include_unlabelled:
+        logger.warning("Both --labelled-only and --include-unlabelled were passed; including unlabelled samples.")
+
+    if labelled_only:
         before = len(samples)
         samples = [sample for sample in samples if sample.ground_truth is not None]
         logger.info(
-            "Filtered to labelled samples: %d -> %d",
+            "Default benchmark filter to labelled samples: %d -> %d",
             before,
             len(samples),
         )

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import csv
 import hashlib
-import json
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -22,9 +21,12 @@ from .utils import get_logger, load_json, save_json
 logger = get_logger(__name__)
 
 _ROW_KEYS_ID = ("id", "bug_id", "pattern_id", "ID", "uid")
-_ROW_KEYS_NAME = ("name", "title", "bug_name", "pattern_name", "error_name")
-_ROW_KEYS_DESC = ("description", "desc", "summary", "problem", "bug_description")
-_ROW_KEYS_FIX = ("fix", "fix_hint", "fix_description", "repair", "solution")
+_ROW_KEYS_NAME = ("name", "title", "bug_name", "pattern_name", "error_name", "bug_pattern")
+_ROW_KEYS_DESC = (
+    "description", "desc", "summary", "problem", "bug_description",
+    "comment", "annotator_comment", "symptom",
+)
+_ROW_KEYS_FIX = ("fix", "fix_hint", "fix_description", "repair", "solution", "commit_msg")
 _ROW_KEYS_CODE = (
     "code",
     "example",
@@ -33,10 +35,13 @@ _ROW_KEYS_CODE = (
     "bug_code",
     "snippet",
 )
-_ROW_KEYS_TYPE = ("taxonomy_class", "category", "bug_type", "type", "label", "class")
+# Note: bug_pattern comes before type so Bugs-QCP rows use the specific bug pattern
+# (e.g. "Barrier Related") rather than the Quantum/Classical type label.
+_ROW_KEYS_TYPE = ("taxonomy_class", "category", "bug_type", "bug_pattern", "type", "label", "class")
 _ROW_KEYS_TAGS = ("tags", "keywords", "keyword", "topics")
 
 _TYPE_ALIAS_MAP: dict[str, str] = {
+    # Generic / inferred terms
     "qubit mapping": "incorrect_qubit_mapping",
     "qubit index": "incorrect_qubit_mapping",
     "index": "incorrect_qubit_mapping",
@@ -48,11 +53,32 @@ _TYPE_ALIAS_MAP: dict[str, str] = {
     "statevector": "wrong_initial_state",
     "measurement": "measurement_error",
     "measure": "measurement_error",
+    # Real upstream Bugs-QCP bug_pattern vocabulary
+    "barrier related": "missing_barrier",
+    "overlooked qubit order": "incorrect_qubit_mapping",
+    "msb-lsb convention": "incorrect_qubit_mapping",
+    "wrong identifier": "incorrect_qubit_mapping",
+    "incorrect numerical computation": "incorrect_operator",
+    "incorrect ir - wrong information": "incorrect_operator",
+    "incorrect ir - missing information": "incorrect_operator",
+    "incorrect circuit": "incorrect_operator",
+    "api misuse - internal": "incorrect_operator",
+    "api misuse - external": "incorrect_operator",
+    "api misuse": "incorrect_operator",
+    "typo": "incorrect_operator",
+    "type problem": "incorrect_operator",
+    "incorrect final measurement": "measurement_error",
+    "incorrect randomness handling": "wrong_initial_state",
+    "wrong concept": "unknown",
+    "incorrect application logic": "unknown",
+    "missing error handling": "unknown",
+    "overlooked corner case": "unknown",
 }
 
 
 @dataclass(frozen=True)
 class BugsQCPIngestReport:
+    discovered_files: int
     discovered_records: int
     imported_records: int
     skipped_records: int
@@ -71,6 +97,9 @@ def ingest_bugsqcp_into_kb(
     dry_run: bool = False,
 ) -> BugsQCPIngestReport:
     input_dir = Path(input_dir)
+    if not input_dir.exists() or not input_dir.is_dir():
+        raise FileNotFoundError(f"Bugs-QCP input directory '{input_dir}' does not exist or is not a directory.")
+
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -81,7 +110,7 @@ def ingest_bugsqcp_into_kb(
     taxonomy_entries = _load_taxonomy(taxonomy_path)
     taxonomy_classes = {entry.class_id for entry in taxonomy_entries}
 
-    discovered_rows = _discover_rows(input_dir)
+    discovered_files, discovered_rows = _discover_bugsqcp_rows(input_dir)
     discovered_count = len(discovered_rows)
 
     imported_patterns: list[BugPattern] = []
@@ -109,6 +138,12 @@ def ingest_bugsqcp_into_kb(
         seen_import_ids.add(pattern.pattern_id)
         imported_patterns.append(pattern)
 
+    if not imported_patterns:
+        raise ValueError(
+            "No usable Bugs-QCP records were found. "
+            f"Discovered records={discovered_count}, skipped={skipped_records}, duplicates={duplicate_in_input}."
+        )
+
     merged_patterns, duplicate_with_existing, manual_preserved = _merge_patterns(
         existing_patterns,
         imported_patterns,
@@ -132,6 +167,7 @@ def ingest_bugsqcp_into_kb(
 
     source_counts = Counter(pattern.source or "unknown" for pattern in merged_patterns)
     return BugsQCPIngestReport(
+        discovered_files=discovered_files,
         discovered_records=discovered_count,
         imported_records=len(imported_patterns),
         skipped_records=skipped_records,
@@ -144,15 +180,118 @@ def ingest_bugsqcp_into_kb(
     )
 
 
-def _discover_rows(input_dir: Path) -> list[dict[str, Any]]:
+def _discover_rows(input_dir: Path) -> tuple[int, list[dict[str, Any]]]:
     rows: list[dict[str, Any]] = []
+    files = 0
     for json_path in sorted(input_dir.rglob("*.json")):
+        files += 1
         for row in _load_json_rows(json_path):
             rows.append({"row": row, "source_file": str(json_path.relative_to(input_dir))})
     for csv_path in sorted(input_dir.rglob("*.csv")):
+        files += 1
         for row in _load_csv_rows(csv_path):
             rows.append({"row": row, "source_file": str(csv_path.relative_to(input_dir))})
-    return rows
+    return files, rows
+
+
+# ---------------------------------------------------------------------------
+# Bugs-QCP canonical-layout discovery helpers
+# ---------------------------------------------------------------------------
+
+def _discover_bugsqcp_rows(input_dir: Path) -> tuple[int, list[dict[str, Any]]]:
+    """Discover rows using the canonical Bugs-QCP archive layout.
+
+    Primary source is ``artifacts/annotation_bugs.csv``.  Each row is enriched
+    with per-case ``commit_msg`` and ``annotator_comment`` from the companion
+    ``artifacts/minimal_bugfixes/{project}/{issue}/metadata.json`` files.
+    Rows where ``real != 'bug'`` (false positives) are excluded.
+
+    Falls back to :func:`_discover_rows` if no ``annotation_bugs.csv`` is
+    found, so the function works for custom / non-canonical directory trees.
+    """
+    annotation_csv = _find_annotation_csv(input_dir)
+    if annotation_csv is None:
+        logger.warning(
+            "No annotation_bugs.csv found under '%s'. "
+            "Falling back to generic JSON/CSV discovery (may import noisy records).",
+            input_dir,
+        )
+        return _discover_rows(input_dir)
+
+    logger.info("Found Bugs-QCP annotation CSV at: %s", annotation_csv)
+
+    # artifacts/ directory is the parent of annotation_bugs.csv
+    artifacts_dir = annotation_csv.parent
+    meta_map = _build_metadata_enrichment_map(artifacts_dir)
+    logger.info("Loaded %d metadata enrichment records.", len(meta_map))
+
+    rows: list[dict[str, Any]] = []
+    rel_csv = str(annotation_csv.relative_to(input_dir))
+    total_rows = 0
+    excluded_fp = 0
+
+    try:
+        with annotation_csv.open(encoding="utf-8", newline="") as fh:
+            reader = csv.DictReader(fh)
+            for csv_row in reader:
+                total_rows += 1
+                if csv_row.get("real", "").strip().lower() != "bug":
+                    excluded_fp += 1
+                    continue
+
+                enriched: dict[str, Any] = dict(csv_row)
+                bug_id = csv_row.get("id", "").strip()
+                if bug_id and bug_id in meta_map:
+                    meta = meta_map[bug_id]
+                    enriched.setdefault("commit_msg", meta.get("commit_msg", ""))
+                    enriched.setdefault("annotator_comment", meta.get("annotator_comment", ""))
+
+                rows.append({"row": enriched, "source_file": rel_csv})
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Failed to parse annotation CSV %s: %s", annotation_csv, exc)
+        return 1, []
+
+    logger.info(
+        "Annotation CSV: %d total rows, %d false-positive rows excluded, %d bug rows loaded.",
+        total_rows,
+        excluded_fp,
+        len(rows),
+    )
+    return 1, rows
+
+
+def _find_annotation_csv(input_dir: Path) -> Path | None:
+    """Return the first ``annotation_bugs.csv`` found under *input_dir*.
+
+    Files located inside ``old_dataset_versions/`` are skipped because that
+    folder contains upstream test artefacts rather than canonical annotations.
+    """
+    for candidate in sorted(input_dir.rglob("annotation_bugs.csv")):
+        if "old_dataset_versions" not in candidate.parts:
+            return candidate
+    return None
+
+
+def _build_metadata_enrichment_map(artifacts_dir: Path) -> dict[str, dict]:
+    """Build a ``{bug_id: metadata_dict}`` map from ``minimal_bugfixes/`` JSON files."""
+    meta_map: dict[str, dict] = {}
+    bugfixes_dir = artifacts_dir / "minimal_bugfixes"
+    if not bugfixes_dir.exists():
+        return meta_map
+
+    for meta_path in sorted(bugfixes_dir.rglob("metadata.json")):
+        if "old_dataset_versions" in meta_path.parts:
+            continue
+        try:
+            meta = load_json(meta_path)
+            if isinstance(meta, dict):
+                bug_id = str(meta.get("id", "")).strip()
+                if bug_id:
+                    meta_map[bug_id] = meta
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Skipping unreadable metadata file %s: %s", meta_path, exc)
+
+    return meta_map
 
 
 def _load_json_rows(path: Path) -> list[dict]:
@@ -206,6 +345,21 @@ def _normalize_row_to_pattern(
     raw_type = _first_value(row, _ROW_KEYS_TYPE) or ""
     tags = _normalize_tags(_first_value(row, _ROW_KEYS_TAGS))
 
+    # Enrich tags with native Bugs-QCP fields when present
+    repo_val = row.get("repo", "").strip()
+    if repo_val and repo_val.lower() not in {"nan", "none", "null"}:
+        project = repo_val.rstrip("/").split("/")[-1].lower()
+        if project and len(project) > 1:
+            tags.append(f"project:{project[:50]}")
+
+    bug_type_val = row.get("type", "").strip().lower()
+    if bug_type_val in {"quantum", "classical"}:
+        tags.append(f"bug_type:{bug_type_val}")
+
+    component_val = row.get("component", "").strip()
+    if component_val and component_val.lower() not in {"nan", "none", "null"}:
+        tags.append(f"component:{component_val[:50].lower()}")
+
     if raw_type:
         type_counter[raw_type.strip()] += 1
 
@@ -217,7 +371,8 @@ def _normalize_row_to_pattern(
 
     normalized_name = name.strip() or f"BugsQCP Pattern {pattern_id}"
     normalized_description = description.strip() or "Bugs-QCP imported pattern."
-    normalized_tags = sorted({*tags, taxonomy_class, "bugsqcp"})
+    provenance_tag = _build_provenance_tag(source_file)
+    normalized_tags = sorted({*tags, taxonomy_class, "bugsqcp", provenance_tag})
 
     return BugPattern(
         pattern_id=pattern_id,
@@ -359,3 +514,8 @@ def _slug(value: str) -> str:
     slug = re.sub(r"[^A-Za-z0-9_\-]+", "_", value.strip())
     slug = re.sub(r"_+", "_", slug).strip("_")
     return slug[:80]
+
+
+def _build_provenance_tag(source_file: str) -> str:
+    safe = _slug(source_file.replace("/", "_"))
+    return f"origin_file:{safe}" if safe else "origin_file:unknown"
