@@ -65,7 +65,15 @@ class BenchmarkRunner:
                 kb_dir = config.get("paths", {}).get("knowledge_base", "knowledge_base")
                 self._kb = KnowledgeBase(kb_dir)
                 top_k = config.get("retrieval", {}).get("top_k", 5)
-                self._retriever = BugPatternRetriever(self._kb.all_patterns())
+                min_score = config.get("retrieval", {}).get("min_score", 1.0)
+                exclude_classes = config.get("retrieval", {}).get(
+                    "exclude_classes", ["unknown"]
+                )
+                self._retriever = BugPatternRetriever(
+                    self._kb.all_patterns(),
+                    min_score=min_score,
+                    exclude_classes=exclude_classes,
+                )
                 self._top_k = top_k
 
     # ── Public API ────────────────────────────────────────────────────────────

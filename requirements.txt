@@ -6,6 +6,7 @@ tqdm>=4.65
 
 # Retrieval / embeddings (lightweight local option)
 scikit-learn>=1.3
+rank_bm25>=0.2
 
 # LLM clients (optional; install as needed)
 # openai>=1.0
