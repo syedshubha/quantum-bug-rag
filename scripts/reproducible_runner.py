@@ -87,7 +87,10 @@ def main() -> None:
         sys.exit(1)
 
     logger.info("Dataset: %s", describe_dataset(dataset))
-    samples = dataset.samples[: args.limit]
+    samples = [s for s in dataset.samples if s.ground_truth is not None]
+
+    if args.limit:
+        samples = samples[: args.limit]
     logger.info("Benchmark capped to %d samples.", len(samples))
 
     run_summaries: list[tuple[str, str]] = []
