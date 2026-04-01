@@ -45,12 +45,34 @@ class BaseLLMClient(ABC):
         to the raw string and ``_parse_error`` set to the error message.
         """
         raw = self.complete(messages, **kwargs)
+        return self._parse_raw(raw)
+
+    def complete_and_parse_n(
+        self,
+        messages: list[dict[str, str]],
+        n: int = 3,
+        temperature: float = 0.4,
+        **kwargs: Any,
+    ) -> list[dict[str, Any]]:
+        """
+        Call complete() *n* times at the given *temperature* and parse each
+        response independently.  Used for self-consistency decoding.
+        """
+        results: list[dict[str, Any]] = []
+        for i in range(n):
+            raw = self.complete(messages, temperature=temperature, **kwargs)
+            parsed = self._parse_raw(raw)
+            results.append(parsed)
+            logger.debug("Self-consistency pass %d/%d: %s", i + 1, n, parsed.get("taxonomy_class", "?"))
+        return results
+
+    @staticmethod
+    def _parse_raw(raw: str) -> dict[str, Any]:
+        """Parse a raw LLM response string as JSON."""
         try:
-            # Strip markdown code fences if present.
             text = raw.strip()
             if text.startswith("```"):
                 lines = text.splitlines()
-                # Remove opening and closing fence lines.
                 text = "\n".join(lines[1:-1]) if len(lines) > 2 else text
             return json.loads(text)
         except json.JSONDecodeError as exc:
