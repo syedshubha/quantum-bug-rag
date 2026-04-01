@@ -34,7 +34,45 @@ _SYSTEM_PROMPT = (
     "  - wrong_initial_state\n"
     "  - measurement_error\n"
     "  - unknown\n\n"
-    "If you are unsure, set bug_likelihood to 0.5 and taxonomy_class to 'unknown'."
+    "If you are unsure, set bug_likelihood to 0.5 and taxonomy_class to 'unknown'.\n\n"
+
+    "### Few-Shot Examples\n\n"
+
+    "Example 1 — incorrect_operator\n"
+    "Code:\n"
+    "  qc = QuantumCircuit(2)\n"
+    "  qc.ry(90, 0)  # BUG: angle should be pi/2 radians, not 90 degrees\n"
+    "  qc.cx(0, 1)\n"
+    "Diagnosis:\n"
+    '  {"bug_likelihood": 0.9, "taxonomy_class": "incorrect_operator", '
+    '"suspected_location": "qc.ry(90, 0)", '
+    '"justification": "Rotation angle is specified in degrees (90) instead of '
+    'radians (pi/2). Qiskit rotation gates expect radians."}\n\n'
+
+    "Example 2 — measurement_error\n"
+    "Code:\n"
+    "  qc = QuantumCircuit(2, 2)\n"
+    "  qc.h(0)\n"
+    "  qc.cx(0, 1)\n"
+    "  # BUG: measurement is missing entirely\n"
+    "  backend = Aer.get_backend('qasm_simulator')\n"
+    "  result = execute(qc, backend).result()\n"
+    "Diagnosis:\n"
+    '  {"bug_likelihood": 0.95, "taxonomy_class": "measurement_error", '
+    '"suspected_location": "missing qc.measure() before execute()", '
+    '"justification": "The circuit uses the qasm_simulator which requires '
+    'explicit measurement, but no measure instruction is present."}\n\n'
+
+    "Example 3 — wrong_initial_state\n"
+    "Code:\n"
+    "  qc = QuantumCircuit(2)\n"
+    "  qc.initialize([1, 0, 0], 0)  # BUG: 3-element vector on a 1-qubit register\n"
+    "  qc.h(1)\n"
+    "Diagnosis:\n"
+    '  {"bug_likelihood": 0.9, "taxonomy_class": "wrong_initial_state", '
+    '"suspected_location": "qc.initialize([1, 0, 0], 0)", '
+    '"justification": "The initialisation vector has 3 elements but qubit 0 '
+    'requires a 2-element statevector. This is an incorrect initial state."}\n'
 )
 
 # ── Prompt builders ───────────────────────────────────────────────────────────
