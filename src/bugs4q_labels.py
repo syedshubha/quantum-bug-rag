@@ -225,6 +225,10 @@ def _normalise_rel_path(path_value: str) -> str | None:
     value = path_value.strip()
     if not value:
         return None
+    
+    # Normalize Windows separators to POSIX-style separators
+    value = value.replace("\\", "/")
+    
     value = value.lstrip("./")
     value = value.rstrip("/")
     return value or None
