@@ -8,8 +8,9 @@ prompt builder, and evaluator into a single coherent pipeline for a given mode.
 from __future__ import annotations
 
 import datetime
+from collections import Counter
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from .baselines import StaticBaseline
 from .dataset_loader import load_bugs4q
@@ -57,6 +58,17 @@ class BenchmarkRunner:
         self._kb: Optional[KnowledgeBase] = None
         self._static: Optional[StaticBaseline] = None
 
+        # Self-consistency decoding settings.
+        sc_cfg = config.get("self_consistency", {})
+        self._sc_enabled: bool = bool(sc_cfg.get("enabled", False))
+        self._sc_n: int = int(sc_cfg.get("n", 3))
+        self._sc_temperature: float = float(sc_cfg.get("temperature", 0.4))
+
+        # Post-hoc calibration settings.
+        cal_cfg = config.get("calibration", {})
+        self._cal_enabled: bool = bool(cal_cfg.get("enabled", False))
+        self._cal_rules: list[dict[str, Any]] = cal_cfg.get("rules", [])
+
         if mode == "static":
             self._static = StaticBaseline()
         elif mode in {"prompt_only", "rag"}:
@@ -69,10 +81,19 @@ class BenchmarkRunner:
                 exclude_classes = config.get("retrieval", {}).get(
                     "exclude_classes", ["unknown"]
                 )
+                dense_cfg = config.get("retrieval", {}).get("dense", {})
+                dense_model = (
+                    dense_cfg.get("model")
+                    if dense_cfg.get("enabled", False)
+                    else None
+                )
+                dense_weight = float(dense_cfg.get("weight", 0.5))
                 self._retriever = BugPatternRetriever(
                     self._kb.all_patterns(),
                     min_score=min_score,
                     exclude_classes=exclude_classes,
+                    dense_model=dense_model,
+                    dense_weight=dense_weight,
                 )
                 self._top_k = top_k
 
@@ -138,12 +159,26 @@ class BenchmarkRunner:
         else:
             messages = build_prompt_only(sample)
 
-        parsed = self._llm.complete_and_parse(messages)
+        # ── Self-consistency or single-pass inference ─────────────────────
+        if self._sc_enabled:
+            parsed = self._infer_with_self_consistency(messages)
+        else:
+            parsed = self._llm.complete_and_parse(messages)
+
+        taxonomy_class = str(parsed.get("taxonomy_class", "unknown"))
+        bug_likelihood = float(parsed.get("bug_likelihood", 0.5))
+
+        # ── Post-hoc calibration ──────────────────────────────────────────
+        if self._cal_enabled:
+            taxonomy_class, bug_likelihood = self._apply_calibration(
+                taxonomy_class, bug_likelihood,
+            )
+
         diag = BugDiagnostic(
             sample_id=sample.sample_id,
             mode=self.mode,
-            bug_likelihood=float(parsed.get("bug_likelihood", 0.5)),
-            taxonomy_class=str(parsed.get("taxonomy_class", "unknown")),
+            bug_likelihood=bug_likelihood,
+            taxonomy_class=taxonomy_class,
             suspected_location=str(parsed.get("suspected_location", "")),
             justification=str(parsed.get("justification", "")),
             ground_truth=sample.ground_truth,
@@ -151,6 +186,62 @@ class BenchmarkRunner:
         )
         diag.compute_correctness()
         return diag
+
+    def _infer_with_self_consistency(
+        self, messages: list[dict[str, str]],
+    ) -> dict[str, Any]:
+        """
+        Query the LLM *n* times and return the response whose taxonomy_class
+        wins the majority vote.  Ties are broken by selecting the response
+        whose bug_likelihood is highest.
+        """
+        assert self._llm is not None
+        responses = self._llm.complete_and_parse_n(
+            messages, n=self._sc_n, temperature=self._sc_temperature,
+        )
+        # Extract taxonomy votes.
+        votes: list[str] = [
+            str(r.get("taxonomy_class", "unknown")) for r in responses
+        ]
+        vote_counts = Counter(votes)
+        winner, _ = vote_counts.most_common(1)[0]
+
+        # Among responses that voted for the winner, pick the one with the
+        # highest bug_likelihood to use as the canonical response.
+        best: dict[str, Any] = {"bug_likelihood": -1.0}
+        for r, v in zip(responses, votes):
+            if v == winner:
+                if float(r.get("bug_likelihood", 0.0)) > float(best.get("bug_likelihood", -1.0)):
+                    best = r
+
+        logger.info(
+            "Self-consistency votes: %s → winner '%s'",
+            dict(vote_counts), winner,
+        )
+        return best
+
+    def _apply_calibration(
+        self, taxonomy_class: str, bug_likelihood: float,
+    ) -> tuple[str, float]:
+        """
+        Apply post-hoc calibration rules.
+
+        Each rule in ``self._cal_rules`` has:
+          - predicted_class: the class to intercept
+          - max_likelihood: if bug_likelihood < this, override
+          - override_class: replacement class
+        """
+        for rule in self._cal_rules:
+            if taxonomy_class == rule.get("predicted_class"):
+                threshold = float(rule.get("max_likelihood", 1.0))
+                if bug_likelihood < threshold:
+                    override = str(rule.get("override_class", "unknown"))
+                    logger.info(
+                        "Calibration override: %s (%.2f < %.2f) → %s",
+                        taxonomy_class, bug_likelihood, threshold, override,
+                    )
+                    return override, bug_likelihood
+        return taxonomy_class, bug_likelihood
 
     def _save_results(
         self, diagnostics: list[BugDiagnostic], summary: EvalSummary
