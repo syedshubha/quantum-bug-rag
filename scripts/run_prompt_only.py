@@ -40,6 +40,12 @@ def main() -> None:
         default="active",
         help="Dataset artifact to evaluate (default: active).",
     )
+    parser.add_argument(
+        "--labelled-only",
+        action="store_true",
+        default=False,
+        help="Restrict to samples with non-null ground_truth.",
+    )
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -51,6 +57,10 @@ def main() -> None:
 
     logger.info("Prompt-only dataset: %s", describe_dataset(dataset))
     samples = dataset.samples
+
+    if args.labelled_only:
+        samples = [s for s in samples if s.ground_truth is not None]
+        logger.info("Filtered to %d labelled samples.", len(samples))
 
     if args.limit:
         samples = samples[: args.limit]

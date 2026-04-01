@@ -126,6 +126,28 @@ class OpenAILLMClient(BaseLLMClient):
         self._temperature = temperature
 
     def complete(self, messages: list[dict[str, str]], **kwargs: Any) -> str:
+        import time
+        import openai as _openai  # noqa: PLC0415
+
+        max_retries = 6
+        for attempt in range(max_retries):
+            try:
+                response = self._client.chat.completions.create(
+                    model=self._model,
+                    messages=messages,  # type: ignore[arg-type]
+                    max_tokens=kwargs.get("max_tokens", self._max_tokens),
+                    temperature=kwargs.get("temperature", self._temperature),
+                )
+                return response.choices[0].message.content or ""
+            except _openai.RateLimitError as exc:
+                wait = min(2 ** attempt * 5, 120)
+                logger.warning(
+                    "Rate limited (429). Retry %d/%d in %ds. %s",
+                    attempt + 1, max_retries, wait, exc,
+                )
+                time.sleep(wait)
+
+        # Final attempt – let it raise on failure
         response = self._client.chat.completions.create(
             model=self._model,
             messages=messages,  # type: ignore[arg-type]
@@ -186,9 +208,11 @@ class GitHubModelsLLMClient(BaseLLMClient):
     def __init__(self, model: str = "gpt-4o-mini", max_tokens: int = 1024, temperature: float = 0.0) -> None:
         import requests  # local import to avoid hard dependency
 
-        token = os.environ.get("GITHUB_TOKEN")
+        token = os.environ.get("GITHUB_MODELS_TOKEN") or os.environ.get("GITHUB_TOKEN")
         if not token:
-            raise RuntimeError("GITHUB_TOKEN environment variable is not set.")
+            raise RuntimeError(
+                "Neither GITHUB_MODELS_TOKEN nor GITHUB_TOKEN environment variable is set."
+            )
 
         self._url = "https://models.inference.ai.azure.com/chat/completions"
         self._headers = {
@@ -201,6 +225,8 @@ class GitHubModelsLLMClient(BaseLLMClient):
         self._requests = requests
 
     def complete(self, messages: list[dict[str, str]], **kwargs: Any) -> str:
+        import time
+
         payload = {
             "model": self._model,
             "messages": messages,
@@ -208,9 +234,30 @@ class GitHubModelsLLMClient(BaseLLMClient):
             "temperature": kwargs.get("temperature", self._temperature),
         }
 
+        max_retries = 6
+        for attempt in range(max_retries):
+            response = self._requests.post(self._url, headers=self._headers, json=payload)
+            if response.status_code == 429:
+                wait = min(2 ** attempt * 5, 120)
+                retry_after = response.headers.get("Retry-After")
+                if retry_after:
+                    try:
+                        wait = max(wait, int(retry_after))
+                    except ValueError:
+                        pass
+                logger.warning(
+                    "Rate limited (429). Retry %d/%d in %ds.",
+                    attempt + 1, max_retries, wait,
+                )
+                time.sleep(wait)
+                continue
+            response.raise_for_status()
+            data = response.json()
+            return data["choices"][0]["message"]["content"] or ""
+
+        # Final attempt – let it raise on failure
         response = self._requests.post(self._url, headers=self._headers, json=payload)
         response.raise_for_status()
-
         data = response.json()
         return data["choices"][0]["message"]["content"] or ""
 

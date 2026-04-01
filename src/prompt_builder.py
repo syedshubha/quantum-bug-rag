@@ -27,6 +27,13 @@ _SYSTEM_PROMPT = (
     '  "suspected_location": <string>,\n'
     '  "justification": <string>\n'
     "}\n\n"
+    "taxonomy_class MUST be exactly one of the following values:\n"
+    "  - incorrect_operator\n"
+    "  - incorrect_qubit_mapping\n"
+    "  - missing_barrier\n"
+    "  - wrong_initial_state\n"
+    "  - measurement_error\n"
+    "  - unknown\n\n"
     "If you are unsure, set bug_likelihood to 0.5 and taxonomy_class to 'unknown'."
 )
 
