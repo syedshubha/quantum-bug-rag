@@ -83,8 +83,22 @@ class BenchmarkRunner:
             len(samples),
         )
         diagnostics: list[BugDiagnostic] = []
-        for sample in samples:
-            diag = self._process_one(sample)
+        for idx, sample in enumerate(samples, 1):
+            logger.info("Processing sample %d/%d: %s", idx, len(samples), sample.sample_id)
+            try:
+                diag = self._process_one(sample)
+            except Exception as exc:
+                logger.error("Sample %s failed: %s", sample.sample_id, exc)
+                diag = BugDiagnostic(
+                    sample_id=sample.sample_id,
+                    mode=self.mode,
+                    bug_likelihood=0.5,
+                    taxonomy_class="unknown",
+                    suspected_location="",
+                    justification=f"Error: {exc}",
+                    ground_truth=sample.ground_truth,
+                )
+                diag.compute_correctness()
             diagnostics.append(diag)
 
         summary = compute_metrics(diagnostics, run_id=self.run_id, mode=self.mode)
