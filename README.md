@@ -1,306 +1,220 @@
 # quantum-bug-rag
 
-A modular, research-grade Python repository for retrieval-augmented LLM-based bug detection and classification in Qiskit programs.  
-Developed for **CSC 7135** — Quantum Software Testing and Analysis.
+Research code for LLM-based bug analysis in quantum software. The repository now contains:
 
-> **Status:** Repository scaffold. Core infrastructure is implemented and tested; full benchmark runs on Bugs4Q are in progress.
+- the original modular scaffold for prompt-only, RAG, and static-baseline experiments over prepared `Bugs4Q` data;
+- a refactored five-class taxonomy track from `quantum_bug_detecttion_taxonomy.ipynb`;
+- a refactored binary classical-vs-quantum track from `quantum-software-bug-detection-rag-project-v6_classical.ipynb`.
 
----
+The notebooks are still kept as provenance and exploratory-analysis artifacts. The new `src/taxonomy_v6`, `src/classical`, and matching `scripts/` entry points are the reusable implementations.
 
-## Table of Contents
+## Project Tracks
 
-1. [Project Overview](#project-overview)
-2. [Repository Structure](#repository-structure)
-3. [Installation](#installation)
-4. [Dataset Roles](#dataset-roles)
-5. [Dataset Preparation](#dataset-preparation)
-6. [Running Experiments](#running-experiments)
-   - [Prompt-Only Baseline](#prompt-only-baseline)
-   - [RAG Pipeline](#rag-pipeline)
-   - [Static Baseline](#static-baseline)
-   - [Subset Evaluation](#subset-evaluation)
-7. [Outputs and Logs](#outputs-and-logs)
-8. [Knowledge Base](#knowledge-base)
-9. [Running Tests](#running-tests)
-10. [Extension Points](#extension-points)
-11. [Leakage Control and Evaluation Splits](#leakage-control-and-evaluation-splits)
-12. [License](#license)
-13. [Documentation Reference](docs/documentation_reference.md) ← all three docs side by side, ready to copy
-
----
-
-## Project Overview
-
-We investigate whether retrieval-augmented generation (RAG) improves LLM-based detection and classification of bugs in Qiskit quantum programs.  
-We compare three experimental modes:
-
-| Mode | Description |
-|------|-------------|
-| `static` | Lightweight rule-based static baseline (pattern-matching heuristics; **not** a full LintQ implementation) |
-| `prompt_only` | LLM inference with the buggy code snippet only |
-| `rag` | LLM inference augmented with retrieved bug-pattern and taxonomy context from the knowledge base |
-
-Each mode produces structured diagnostics:
-
-```json
-{
-  "bug_likelihood": 0.87,
-  "taxonomy_class": "incorrect_operator",
-  "suspected_location": "circuit.cx(0, 1)",
-  "justification": "..."
-}
-```
-
----
+| Track | Purpose | Main code | Entry point |
+|------|---------|-----------|-------------|
+| `legacy scaffold` | Prompt-only, RAG, and static baseline over prepared local datasets and `knowledge_base/` | `src/` top-level modules | `scripts/run_prompt_only.py`, `scripts/run_rag.py`, `scripts/run_static_baseline.py` |
+| `taxonomy_v6` | Forced-choice 5-class quantum bug classification with validated KB and framework-aware retrieval | `src/taxonomy_v6/` | `scripts/run_taxonomy_v6.py` |
+| `classical` | Binary classification of bugs as `quantum` vs `classical`, including biased vs balanced retrieval | `src/classical/` | `scripts/run_classical_vs_quantum.py` |
 
 ## Repository Structure
 
-```
+```text
 quantum-bug-rag/
 ├── README.md
-├── LICENSE
-├── requirements.txt
-├── config.example.yaml          # Copy to config.yaml; never commit secrets
-├── src/                         # Core library
-│   ├── __init__.py
-│   ├── schemas.py               # Pydantic models for inputs and outputs
-│   ├── utils.py                 # Shared utilities (config loading, logging)
-│   ├── dataset_loader.py        # Bugs4Q loader and normalisation
-│   ├── benchmark_runner.py      # Orchestrates a full evaluation run
-│   ├── retriever.py             # Local TF-IDF / cosine retriever
-│   ├── prompt_builder.py        # Constructs LLM prompts for each mode
-│   ├── llm_client.py            # LLM abstraction (mock / OpenAI / Gemini)
-│   ├── baselines.py             # Static rule-based baseline
-│   ├── evaluate.py              # Metrics computation
-│   └── knowledge_ingest.py      # Knowledge-base loading and indexing
-├── scripts/                     # CLI entry points
-│   ├── prepare_bugs4q.py        # Fetch and normalise Bugs4Q
-│   ├── prepare_bugsqcp_kb.py    # Ingest Bugs-QCP into knowledge base
+├── quantum_bug_detecttion_taxonomy.ipynb
+├── quantum-software-bug-detection-rag-project-v6_classical.ipynb
+├── src/
+│   ├── ...                         # legacy scaffold modules
+│   ├── classical/
+│   │   ├── analysis.py
+│   │   ├── dataset.py
+│   │   ├── evaluator.py
+│   │   ├── kb.py
+│   │   ├── llm.py
+│   │   ├── prompts.py
+│   │   ├── retriever.py
+│   │   └── schemas.py
+│   └── taxonomy_v6/
+│       ├── dataset.py
+│       ├── evaluator.py
+│       ├── kb.py
+│       ├── llm.py
+│       ├── prompts.py
+│       ├── retriever.py
+│       └── schemas.py
+├── scripts/
+│   ├── run_classical_vs_quantum.py
+│   ├── run_taxonomy_v6.py
 │   ├── run_prompt_only.py
 │   ├── run_rag.py
 │   ├── run_static_baseline.py
-│   └── run_subset_eval.py
-├── knowledge_base/
-│   ├── bug_patterns.json        # Starter bug-pattern entries
-│   ├── taxonomy.json            # Starter taxonomy
-│   └── README.md
-├── data/
-│   ├── README.md                # How to obtain and place datasets
-│   └── bugs4q/                  # Populated by prepare_bugs4q.py
-├── outputs/
-│   └── README.md                # Output format documentation
+│   └── ...
 ├── docs/
-│   └── methodology.md           # Research methodology notes
+├── data/
+├── knowledge_base/
+├── outputs/
 └── tests/
-    ├── test_schemas.py
-    ├── test_retriever.py
-    ├── test_llm_client.py
-    ├── test_baselines.py
-    └── test_pipeline_integration.py
 ```
-
----
 
 ## Installation
 
-We recommend a dedicated virtual environment.
-
 ```bash
 python -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Copy and edit the configuration file:
-
-```bash
-cp config.example.yaml config.yaml
-# Edit config.yaml to choose your LLM backend (default: mock)
-```
-
-For OpenAI or Gemini backends, set the appropriate environment variable:
+For OpenAI-backed runs:
 
 ```bash
 export OPENAI_API_KEY="sk-..."
-export GOOGLE_API_KEY="..."
 ```
 
----
+The new notebook-refactored scripts use `rank_bm25`, `pyyaml`, `numpy`, and `scikit-learn` from `requirements.txt`.
 
-## Dataset Roles
+## Datasets And Roles
 
-> **Important:** We use two distinct external datasets with clearly separated roles.
+| Dataset / Repo | Role |
+|----------------|------|
+| `Bugs4Q` | Benchmark corpus of buggy quantum programs. Used by the legacy scaffold and both new tracks. |
+| `Bugs-QCP` | Auxiliary corpus. Used as a labelled source in the `classical` track and as a quantum sample source in `taxonomy_v6`. |
+| `Qiskit`, `Qiskit Aer`, `Qiskit Ignis`, `Qiskit IBM Runtime`, `PennyLane` | Source repositories for validated KB extraction in `taxonomy_v6`. |
+| `CPython`, `NumPy` | Classical release-note sources for the symmetric KB in the `classical` track. |
 
-| Dataset | Role |
-|---------|------|
-| **Bugs4Q** ([GitHub](https://github.com/Z-928/Bugs4Q)) | **Primary benchmark and evaluation dataset.** Bugs4Q is an executable benchmark of real Qiskit bugs with ground-truth labels. All reported evaluation metrics are computed on this dataset. |
-| **Bugs-QCP** (Zenodo 5834281) | **Secondary corpus for knowledge-base enrichment.** We use Bugs-QCP only for taxonomy grounding, bug-pattern retrieval context, and knowledge-base construction. It is **not** used as an evaluation dataset. |
+The legacy scaffold expects prepared local data under `data/` and a JSON knowledge base under `knowledge_base/`.
 
-> ⚠️ **Synthetic smoke-test data** (generated by `prepare_bugs4q.py --smoke-test`) is **for infrastructure validation only**. It must **never** be used when reporting benchmark results.
+The notebook-refactored scripts expect cloned upstream repositories under a `--work-dir` that you provide.
 
----
+## Running The Legacy Scaffold
 
-## Dataset Preparation
-
-Neither Bugs4Q nor Bugs-QCP is bundled in this repository. Follow the steps below to prepare each dataset locally.
-
-### Bugs4Q
+Prepare the legacy local dataset layout:
 
 ```bash
-# Clone the Bugs4Q repository and normalise it into data/bugs4q/
 python scripts/prepare_bugs4q.py --output-dir data/bugs4q/
-
-# Smoke-test mode (generates synthetic samples; for pipeline testing only)
-python scripts/prepare_bugs4q.py --smoke-test --output-dir data/bugs4q/
+python scripts/prepare_bugsqcp_kb.py --input-dir /path/to/bugsqcp --output-dir knowledge_base/
 ```
 
-See `data/README.md` for full instructions.
-
-### Bugs-QCP Knowledge-Base Enrichment
+Run the original modes:
 
 ```bash
-# After downloading the Bugs-QCP archive from Zenodo 5834281:
-python scripts/prepare_bugsqcp_kb.py \
-    --input-dir /path/to/bugsqcp/ \
-    --output-dir knowledge_base/
+python scripts/run_prompt_only.py --data-dir data/bugs4q --output-dir outputs --config config.yaml
+python scripts/run_rag.py --data-dir data/bugs4q --kb-dir knowledge_base --output-dir outputs --config config.yaml
+python scripts/run_static_baseline.py --data-dir data/bugs4q --output-dir outputs
 ```
 
-See `knowledge_base/README.md` for the expected JSON schema.
+## Running `taxonomy_v6`
 
----
+Expected `--work-dir` layout:
 
-## Running Experiments
+```text
+work-dir/
+├── bugs4q_upstream/
+├── bqcp/
+├── qiskit/
+├── qiskit_aer/
+├── qiskit_ignis/
+├── qiskit_ibm_runtime/
+└── pennylane/
+```
 
-All scripts accept `--config` to point at a custom YAML configuration file (default: `config.yaml`).
-
-### Prompt-Only Baseline
+Run:
 
 ```bash
-python scripts/run_prompt_only.py \
-    --data-dir data/bugs4q/ \
-    --output-dir outputs/ \
-    --config config.yaml
+python scripts/run_taxonomy_v6.py \
+  --work-dir /path/to/work-dir \
+  --results-dir outputs/taxonomy_v6 \
+  --model gpt-4o
 ```
 
-### RAG Pipeline
+Use `--mock` for an offline smoke run.
+
+This track evaluates two modes over labelled samples from both `Bugs4Q` and `Bugs-QCP`:
+
+- `prompt_only`
+- `rag`
+
+It writes:
+
+- `diagnostics_<dataset>_<mode>.jsonl`
+- `metrics_<dataset>_<mode>.json`
+- `summary.json`
+
+## Running `classical`
+
+Expected `--work-dir` layout:
+
+```text
+work-dir/
+├── bugs4q/
+├── bqcp/
+├── qiskit/
+├── qiskit_aer/
+├── pennylane/
+├── cpython/
+└── numpy/
+```
+
+Run:
 
 ```bash
-python scripts/run_rag.py \
-    --data-dir data/bugs4q/ \
-    --kb-dir knowledge_base/ \
-    --output-dir outputs/ \
-    --config config.yaml
+python scripts/run_classical_vs_quantum.py \
+  --work-dir /path/to/work-dir \
+  --results-dir outputs/classical_vs_quantum \
+  --model gpt-4o
 ```
 
-### Static Baseline
+Use `--mock` for an offline smoke run.
 
-```bash
-python scripts/run_static_baseline.py \
-    --data-dir data/bugs4q/ \
-    --output-dir outputs/
-```
+This track evaluates:
 
-> Note: The static baseline is a lightweight placeholder using rule-based heuristics. It is **not** a full re-implementation of LintQ or any other published quantum linter.
+- `prompt_only`
+- `biased_rag`
+- `balanced_rag`
 
-### Subset Evaluation
+It writes:
 
-For quick iteration on a small subset of Bugs4Q samples:
+- `diagnostics_bqcp_<mode>.jsonl`
+- `diagnostics_bugs4q_<mode>.jsonl`
+- `summary.json`
 
-```bash
-python scripts/run_subset_eval.py \
-    --data-dir data/bugs4q/ \
-    --subset-size 20 \
-    --config config.yaml
-```
+`Bugs4Q` is treated as an external all-quantum holdout for purity checks in this binary setup.
 
----
+## Notebook Refactor Coverage
 
-## Outputs and Logs
+The new module/script paths cover the core experiment logic from both notebooks:
 
-Each run writes a timestamped JSONL file to `outputs/`. Each line is a structured diagnostic:
+- dataset adapters;
+- KB construction;
+- retrievers;
+- prompt builders;
+- LLM clients;
+- evaluation loops and JSON artefact writing.
 
-```json
-{
-  "sample_id": "bugs4q_042",
-  "mode": "rag",
-  "bug_likelihood": 0.91,
-  "taxonomy_class": "incorrect_qubit_mapping",
-  "suspected_location": "qc.cx(control, target)",
-  "justification": "...",
-  "ground_truth": "incorrect_qubit_mapping",
-  "correct": true
-}
-```
+What remains notebook-only today:
 
-A summary metrics file (`metrics_<run_id>.json`) is written alongside the JSONL file.
+- ad hoc plotting cells;
+- console-only disagreement/error-print helpers;
+- zip/archive packaging cells.
 
-See `outputs/README.md` for the complete output schema.
+Those notebook-only pieces do not block the reusable experiment runs, but they are not exposed as standalone CLI commands yet.
 
----
+## Outputs
 
-## Knowledge Base
+See:
 
-The `knowledge_base/` directory ships with starter content:
+- [`outputs/README.md`](outputs/README.md)
+- [`docs/methodology.md`](docs/methodology.md)
+- [`docs/methodology_and_architecture.md`](docs/methodology_and_architecture.md)
+- [`docs/documentation_reference.md`](docs/documentation_reference.md)
 
-- `bug_patterns.json` — hand-curated and Bugs-QCP-derived bug-pattern entries specific to Qiskit and quantum programs.
-- `taxonomy.json` — a starter taxonomy for quantum bug classification.
-
-Run `prepare_bugsqcp_kb.py` to enrich the knowledge base with additional entries derived from the Bugs-QCP corpus.
-
----
-
-## Running Tests
+## Tests
 
 ```bash
 pytest tests/ -v
 ```
 
-To run with coverage:
-
-```bash
-pytest tests/ -v --cov=src --cov-report=term-missing
-```
-
-Tests use the mock LLM backend and in-memory synthetic data; no external APIs or datasets are required.
-
----
-## Reproducible Benchmark Runner
-
-We provide a pilot runner script to execute multiple benchmark modes in a unified and reproducible way.
-
-Example:
-
-```bash
-python scripts/reproducible_runner.py --limit 3
-```
-
----
-
-
-## Leakage Control and Evaluation Splits
-
-When running full experiments with Bugs4Q, we apply strict train/eval split discipline:
-
-- The knowledge base is constructed from the **Bugs-QCP corpus only** (or the Bugs4Q training split, if applicable), never from the evaluation split.
-- Retrieved bug-pattern context in RAG mode must not expose evaluation-set ground-truth labels to the model.
-- All reported metrics are computed on a held-out evaluation split.
-
-See `docs/methodology.md` for details.
-
----
-
-## Extension Points
-
-| Component | How to extend |
-|-----------|--------------|
-| LLM backend | Add a new class in `src/llm_client.py` implementing `BaseLLMClient` |
-| Retriever | Replace or augment `src/retriever.py` with dense retrieval (e.g., Sentence-Transformers + FAISS) |
-| Dataset | Add a loader in `src/dataset_loader.py` following the `BugSample` schema |
-| Taxonomy | Edit `knowledge_base/taxonomy.json` and re-index with `knowledge_ingest.py` |
-| Metrics | Add new metric functions to `src/evaluate.py` |
-
----
+The current automated tests mainly cover the legacy scaffold. The two new tracks are presently documented and script-driven, with syntax-level validation but no dedicated test module yet.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [`LICENSE`](LICENSE).

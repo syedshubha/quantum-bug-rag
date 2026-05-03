@@ -1,70 +1,84 @@
 # Data Directory
 
-This directory stores locally prepared datasets.  **No raw external dataset
-files are committed to this repository.**
+This directory documents the prepared-data workflow used by the legacy scaffold.
 
-## Subdirectories
+## What Lives Here
 
-| Path | Contents |
-|------|----------|
-| `bugs4q/` | Normalised Bugs4Q samples (populated by `scripts/prepare_bugs4q.py`). |
+| Path | Purpose |
+|------|---------|
+| `data/bugs4q/` | Prepared Bugs4Q JSONL files for the legacy top-level pipeline |
 
-## Dataset Roles
+The newer `taxonomy_v6` and `classical` CLIs do not read from `data/bugs4q/`. They expect raw upstream repository clones under a user-provided `--work-dir`.
 
-| Dataset | Role |
-|---------|------|
-| **Bugs4Q** | Primary benchmark and evaluation dataset. All reported metrics are computed on Bugs4Q. |
-| **Bugs-QCP** | Secondary corpus for knowledge-base enrichment and taxonomy grounding only. Not used as an evaluation dataset. |
+## Dataset Roles Across The Repository
 
-## Obtaining Bugs4Q
+| Dataset | Legacy scaffold | `taxonomy_v6` | `classical` |
+|---------|-----------------|---------------|-------------|
+| `Bugs4Q` | Prepared evaluation dataset | Upstream clone, evaluated with mapped labels | Upstream clone, treated as all-quantum holdout |
+| `Bugs-QCP` | KB enrichment source only | Upstream clone, quantum-only evaluation subset | Upstream clone, primary labelled binary dataset |
 
-Bugs4Q is an executable benchmark of real Qiskit bugs maintained at
-<https://github.com/Z-928/Bugs4Q>.  To prepare it:
+## Preparing Bugs4Q For The Legacy Scaffold
 
 ```bash
 python scripts/prepare_bugs4q.py --output-dir data/bugs4q/
 ```
 
-This clones the upstream repository and converts benchmark candidates into the
-`BugSample` JSON schema under `data/bugs4q/`.
-
-The prepared directory keeps real and smoke-test data separate:
+This creates prepared JSONL artefacts such as:
 
 - `samples.real.jsonl`
 - `samples.synthetic.jsonl`
 - `active_dataset.json`
 
-Use `python scripts/inspect_dataset.py --data-dir data/bugs4q/` to confirm
-which prepared dataset is active before running evaluations.
+Inspect the current prepared dataset:
 
-### Smoke-Test Mode
+```bash
+python scripts/inspect_dataset.py --data-dir data/bugs4q/
+```
 
-For pipeline infrastructure validation only (no real data required):
+## Smoke-Test Mode
 
 ```bash
 python scripts/prepare_bugs4q.py --smoke-test --output-dir data/bugs4q/
 ```
 
-> ⚠️ Synthetic smoke-test samples must **never** be used when reporting
-> benchmark results.  They exist solely to validate that the pipeline runs
-> end-to-end without errors.
+Synthetic smoke data is only for validating pipeline wiring. Do not report benchmark metrics from it.
 
-## Obtaining Bugs-QCP
+## Bugs-QCP For The Legacy Scaffold
 
-Bugs-QCP is available from Zenodo at <https://zenodo.org/records/5834281>.
-Download the archive, extract it, then run:
+To enrich the legacy JSON knowledge base:
 
 ```bash
 python scripts/prepare_bugsqcp_kb.py \
-    --input-dir /path/to/bugsqcp/ \
-    --output-dir knowledge_base/
+  --input-dir /path/to/bugsqcp \
+  --output-dir knowledge_base/
 ```
 
-This does **not** copy raw Bugs-QCP files into this repository; it only
-enriches the knowledge base with normalised pattern entries.
+## Raw Clone Layout For The Newer Tracks
 
-## Split Discipline
+The newer notebook-refactored CLIs expect upstream clones instead of prepared JSONL files.
 
-When running full Bugs4Q evaluations, maintain a strict training/evaluation
-split.  The knowledge base must not contain any samples from the evaluation
-split.  See `docs/methodology.md` for details.
+`scripts/run_taxonomy_v6.py` expects:
+
+```text
+work-dir/
+├── bugs4q_upstream/
+├── bqcp/
+├── qiskit/
+├── qiskit_aer/
+├── qiskit_ignis/
+├── qiskit_ibm_runtime/
+└── pennylane/
+```
+
+`scripts/run_classical_vs_quantum.py` expects:
+
+```text
+work-dir/
+├── bugs4q/
+├── bqcp/
+├── qiskit/
+├── qiskit_aer/
+├── pennylane/
+├── cpython/
+└── numpy/
+```

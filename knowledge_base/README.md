@@ -1,20 +1,28 @@
 # Knowledge Base
 
-This directory contains the local knowledge base used by the RAG pipeline for
-bug-pattern retrieval and taxonomy grounding.
+This directory documents the JSON knowledge base used by the legacy scaffold.
+
+## Scope
+
+`knowledge_base/` is the active KB format for the original top-level RAG pipeline:
+
+- `scripts/run_rag.py`
+- `src/knowledge_ingest.py`
+- `src/retriever.py`
+
+The newer `taxonomy_v6` and `classical` tracks do not read `knowledge_base/bug_patterns.json` directly. They build their own KBs dynamically from upstream release notes and rule summaries.
 
 ## Files
 
-| File | Description |
-|------|-------------|
-| `bug_patterns.json` | Starter bug-pattern entries derived from manual curation and Bugs-QCP-derived patterns. |
-| `taxonomy.json` | Starter taxonomy for quantum bug classification. |
+| File | Purpose |
+|------|---------|
+| `bug_patterns.json` | Legacy JSON array of bug-pattern entries |
+| `taxonomy.json` | Legacy taxonomy definition |
+| `taxonomy_mapping_hints.json` | Auxiliary mapping hints used by the project |
 
-## Schema
+## Legacy JSON Schema
 
-### `bug_patterns.json`
-
-A JSON array of objects matching the `BugPattern` Pydantic model (`src/schemas.py`):
+Example `bug_patterns.json` entry:
 
 ```json
 {
@@ -29,9 +37,7 @@ A JSON array of objects matching the `BugPattern` Pydantic model (`src/schemas.p
 }
 ```
 
-### `taxonomy.json`
-
-A JSON array of objects matching the `TaxonomyEntry` Pydantic model:
+Example `taxonomy.json` entry:
 
 ```json
 {
@@ -43,23 +49,28 @@ A JSON array of objects matching the `TaxonomyEntry` Pydantic model:
 }
 ```
 
-## Enriching the Knowledge Base
-
-To add Bugs-QCP-derived entries, download the Bugs-QCP archive from
-[Zenodo 5834281](https://zenodo.org/records/5834281) and run:
+## Legacy KB Enrichment
 
 ```bash
 python scripts/prepare_bugsqcp_kb.py \
-    --input-dir /path/to/bugsqcp/ \
-    --output-dir knowledge_base/
+  --input-dir /path/to/bugsqcp \
+  --output-dir knowledge_base/
 ```
 
-The script normalises each entry to the `BugPattern` schema and merges it into
-`bug_patterns.json` without overwriting existing manually-curated entries.
+This normalizes Bugs-QCP data into the legacy JSON schema.
 
-## Leakage Note
+## KBs In The Newer Tracks
 
-The knowledge base must be constructed from the **Bugs-QCP corpus** and the
-**Bugs4Q training split only**.  Evaluation-split Bugs4Q samples must never
-appear in the knowledge base or be used to populate retrieved context during
-evaluation.  See `docs/methodology.md` for details.
+`taxonomy_v6` builds a validated quantum KB from:
+
+- Qiskit-family release notes;
+- IBM Runtime release notes;
+- PennyLane changelogs;
+- embedded LintQ summaries.
+
+`classical` builds a symmetric KB with:
+
+- quantum entries from Qiskit-family and PennyLane release notes;
+- classical entries from CPython and NumPy release notes.
+
+Those KBs are generated in memory at runtime and are not persisted in this directory by default.
