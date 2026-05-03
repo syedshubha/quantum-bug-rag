@@ -1,3 +1,53 @@
+"""Symmetric knowledge-base extractors for the classical-vs-quantum track.
+
+We construct two halves of the KB, then deterministically downsample the
+larger half so the two domains are size-matched (BM25 ranking probabilities
+depend on pool composition; an unbalanced KB is not actually balanced).
+
+Quantum side:
+  - Qiskit / Qiskit-Aer ``releasenotes/notes/*.yaml``
+    (``fixes`` / ``deprecations`` / ``upgrade`` sections).
+  - PennyLane ``doc/releases/changelog-*.md`` bug-fix and breaking-change
+    sections.
+
+Classical side:
+  - CPython ``Misc/NEWS.d/*.rst`` entries from bug-fix-flavoured sections
+    (Security / Core and Builtins / Library / C API / Windows / macOS).
+  - NumPy ``doc/source/release/*-notes.rst``, restricted to ``Bug fixes``,
+    ``Changes``, and ``Compatibility notes``.
+
+Each entry is filtered by length and prefix to drop pure-feature/cosmetic
+notes (``"Speed up …"``, ``"Document …"``, ``"Add new …"``, etc).
+"""
+
+from __future__ import annotations
+
+import random
+import re
+from collections import Counter
+from pathlib import Path
+
+import yaml
+
+from .schemas import KBEntry
+
+
+# ── Shared cleanup helpers ──────────────────────────────────────────────────
+
+def _strip_rst(s: str) -> str:
+    s = re.sub(r":[a-z_]+:`([^`]+)`", r"\1", s)
+    s = re.sub(r"`([^`]+) <https?://[^>]+>`_*", r"\1", s)
+    s = re.sub(r"`([^`]+)`_+", r"\1", s)
+    s = re.sub(r"<https?://[^>]+>", "", s)
+    s = re.sub(r":pep:`(\d+)`", r"PEP-\1", s)
+    s = re.sub(r":issue:`(\d+)`", r"issue-\1", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+def _is_low_quality(text: str, min_len: int = 60, max_len: int = 1200) -> bool:
+    if len(text) < min_len or len(text) > max_len:
+        return True
     skip_prefixes = (
         "speed up ", "document ", "add new ", "added new ", "added: ",
         "documentation ", "patch by ", "port the ",
