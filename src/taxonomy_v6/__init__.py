@@ -9,10 +9,11 @@ Modules:
   dataset      Bugs4Q + Bugs-QCP loaders that emit BugSample dataclasses.
   kb           Validated KB extractors (Qiskit/Aer/Ignis YAML release notes,
                IBM Runtime RST, PennyLane changelog, LintQ rules).
-  retriever    Framework-aware BM25 retriever with class diversification.
+  retriever    Framework-aware BM25 retriever with a hard score floor.
   prompts      Forced-choice classifier prompt and prompt builders.
   llm          OpenAI / mock client used by the v6 evaluation runs.
-  evaluator    run_one_sample, compute_metrics (with top-2 accuracy), evaluate.
+  analysis     Dev/test split helpers, confidence intervals, McNemar, ECE.
+  evaluator    Structured-output evaluation helpers and diagnostics writers.
 """
 
 from .schemas import (

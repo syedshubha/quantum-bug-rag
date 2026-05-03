@@ -22,7 +22,7 @@ Categories (one of these MUST apply — there is no "no bug" option):
 Score each category from 0.0 to 1.0 by how well it explains the bug. Scores DO NOT need to sum to 1.0. Pick the category with the HIGHEST score as the final classification.
 
 Output JSON only, no markdown:
-{"scores": {"incorrect_operator": <0-1>, "incorrect_qubit_mapping": <0-1>, "missing_barrier": <0-1>, "wrong_initial_state": <0-1>, "measurement_error": <0-1>}, "taxonomy_class": "<category with highest score>", "suspected_location": "<code fragment>", "justification": "<one sentence>"}"""
+{"scores": {"incorrect_operator": <0-1>, "incorrect_qubit_mapping": <0-1>, "missing_barrier": <0-1>, "wrong_initial_state": <0-1>, "measurement_error": <0-1>}, "taxonomy_class": "<category with highest score>", "suspected_location": "<code fragment>", "justification": "<one sentence>", "evidence_ids": ["<retrieved reference id>", "..."]}"""
 
 MAX_CODE_CHARS = 4000
 MAX_REF_CHARS = 350
@@ -33,7 +33,11 @@ def _truncate(s: str, n: int) -> str:
 
 
 def build_prompt_only(sample: BugSample) -> list[dict]:
-    user = f"Code (definitely buggy):\n```python\n{_truncate(sample.code, MAX_CODE_CHARS)}\n```"
+    user = (
+        "No external references are provided for this sample, so evidence_ids "
+        "must be an empty array.\n\n"
+        f"Code (definitely buggy):\n```python\n{_truncate(sample.code, MAX_CODE_CHARS)}\n```"
+    )
     return [
         {"role": "system", "content": CLASSIFIER_PROMPT},
         {"role": "user", "content": user},
@@ -42,13 +46,17 @@ def build_prompt_only(sample: BugSample) -> list[dict]:
 
 def build_rag_prompt(sample: BugSample, retrieved: list[BugPattern]) -> list[dict]:
     refs = [
-        f"Ref{i} [{p.taxonomy_class}]: {_truncate(p.description, MAX_REF_CHARS)}"
-        for i, p in enumerate(retrieved, 1)
+        (
+            f"Reference ID {p.pattern_id} [{p.taxonomy_class}]: "
+            f"{_truncate(p.description, MAX_REF_CHARS)}"
+        )
+        for p in retrieved
     ]
     refs_text = "\n".join(refs) if refs else "(no relevant references)"
     user = (
         "Reference bug-fix patterns (from validated quantum-framework release notes — "
-        "use these as category guidance):\n"
+        "use these as category guidance). If you cite evidence, "
+        "only use the provided reference IDs in evidence_ids:\n"
         f"{refs_text}\n\n"
         f"Code (definitely buggy):\n```python\n{_truncate(sample.code, MAX_CODE_CHARS)}\n```"
     )

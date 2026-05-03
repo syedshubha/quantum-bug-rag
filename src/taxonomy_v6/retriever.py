@@ -1,4 +1,4 @@
-"""Framework-aware diversified BM25 retriever for the v6 taxonomy track.
+"""Framework-aware BM25 retriever for the v6 taxonomy track.
 
 Pipeline at retrieval time:
 
@@ -6,9 +6,7 @@ Pipeline at retrieval time:
    syntactic signatures.
 2. Compute BM25 scores over the full KB.
 3. Boost scores by 1.5x for KB entries tagged with the detected framework.
-4. From a top-pool of size ``top_pool``, pick at least one entry per
-   distinct taxonomy class (diversification).
-5. Fill remaining slots with the next-best regardless of class.
+4. Return the raw top-K hits after applying a hard score floor.
 """
 
 from __future__ import annotations
@@ -64,7 +62,7 @@ def detect_framework(code: str) -> str:
 
 
 class FrameworkAwareRetriever:
-    """BM25 retriever with framework boosting and class diversification."""
+    """BM25 retriever with framework boosting and a hard score floor."""
 
     def __init__(self, patterns: Iterable[BugPattern], top_pool: int = 20) -> None:
         self.patterns: list[BugPattern] = list(patterns)
@@ -92,7 +90,19 @@ class FrameworkAwareRetriever:
         query: str,
         top_k: int = 5,
         framework: str = "other",
+        floor: float = 0.0,
     ) -> list[BugPattern]:
+        return [p for p, _ in self.retrieve_with_scores(
+            query, top_k=top_k, framework=framework, floor=floor
+        )]
+
+    def retrieve_with_scores(
+        self,
+        query: str,
+        top_k: int = 5,
+        framework: str = "other",
+        floor: float = 0.0,
+    ) -> list[tuple[BugPattern, float]]:
         if self.bm25 is None:
             return []
         tokens = _tokenize(query)
@@ -107,24 +117,27 @@ class FrameworkAwareRetriever:
                 scores[i] *= 1.5
 
         ranked = sorted(enumerate(scores), key=lambda x: -x[1])
-        pool = [(i, s) for i, s in ranked[: self.top_pool] if s > 0]
-        if not pool:
-            return []
-
-        result: list[BugPattern] = []
-        seen_classes: set[str] = set()
-        # First pass: best per distinct taxonomy class
-        for i, _ in pool:
-            p = self.patterns[i]
-            if p.taxonomy_class not in seen_classes:
-                result.append(p)
-                seen_classes.add(p.taxonomy_class)
-                if len(result) >= top_k:
-                    break
-        # Second pass: fill remaining slots
-        for i, _ in pool:
+        result: list[tuple[BugPattern, float]] = []
+        for i, s in ranked:
+            if s < floor:
+                continue
+            result.append((self.patterns[i], float(s)))
             if len(result) >= top_k:
                 break
-            if self.patterns[i] not in result:
-                result.append(self.patterns[i])
-        return result[:top_k]
+        return result
+
+    def top_score(self, query: str, framework: str = "other") -> float:
+        if self.bm25 is None:
+            return 0.0
+        tokens = _tokenize(query)
+        if not tokens:
+            return 0.0
+        scores = self.bm25.get_scores(tokens)
+        if framework in self._fw_index:
+            boost_indices = set(self._fw_index[framework])
+            scores = scores.copy()
+            for i in boost_indices:
+                scores[i] *= 1.5
+        if len(scores) == 0:
+            return 0.0
+        return float(np.max(scores))

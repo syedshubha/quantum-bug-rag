@@ -40,11 +40,21 @@ class BugDiagnostic:
     bug_likelihood: float
     taxonomy_class: str
     class_scores: dict = field(default_factory=dict)
+    evidence_ids: list[str] = field(default_factory=list)
     suspected_location: str = ""
     justification: str = ""
     ground_truth: Optional[str] = None
     correct: Optional[bool] = None
     retrieved_patterns: list = field(default_factory=list)
+    top1_bm25_score: Optional[float] = None
+    routed_mode: str = ""
+    final_mode: str = ""
+    abstained_to_prompt_only: bool = False
+    prompt_only_fallback_used: bool = False
+    fallback_reason: str = ""
+    attribution_failure: bool = False
+    grounded: Optional[bool] = None
+    parse_retry_count: int = 0
 
 
 @dataclass

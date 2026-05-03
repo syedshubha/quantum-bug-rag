@@ -30,6 +30,7 @@ Files:
 - `src/taxonomy_v6/retriever.py`
 - `src/taxonomy_v6/prompts.py`
 - `src/taxonomy_v6/llm.py`
+- `src/taxonomy_v6/analysis.py`
 - `src/taxonomy_v6/evaluator.py`
 - `scripts/run_taxonomy_v6.py`
 
@@ -37,10 +38,10 @@ Execution flow:
 
 1. Load Bugs4Q and quantum-only Bugs-QCP samples.
 2. Build a validated quantum KB from release notes and LintQ summaries.
-3. Detect the framework of each query snippet.
-4. Retrieve diversified BM25 references with framework boosting.
-5. Run either prompt-only or RAG classification.
-6. Write diagnostics, metrics, and a cross-mode summary.
+3. Split each labelled dataset into a deterministic 60% Dev / 40% Test partition.
+4. On Dev, run prompt-only and pure-RAG baselines, then tune the abstention threshold `tau`, fit temperature-scaling parameter `T`, and estimate the model prior `pi_hat(c)` from average raw class-score vectors.
+5. On Test, run prompt-only and pure-RAG baselines, derive the abstention-routed hybrid system with the frozen `tau`, apply temperature scaling, then apply smoothed Bayesian prior correction with `epsilon = 0.05` before final argmax classification.
+6. Write split-specific diagnostics, per-mode Test metrics, and a summary with confidence intervals, McNemar, and ECE.
 
 ### 2.2 `classical`
 
@@ -141,7 +142,8 @@ Retriever properties:
 - BM25 over KB text;
 - framework detection for `qiskit`, `pennylane`, `cirq`, `qsharp`, or `other`;
 - 1.5x score boost for matching-framework KB entries;
-- diversified selection across taxonomy classes.
+- raw top-K ranking with a hard BM25 score floor;
+- `top1_bm25_score` recorded for abstention routing.
 
 ### 5.2 `classical`
 
@@ -170,13 +172,28 @@ Each track supports:
 - `--mock` for offline deterministic smoke runs;
 - OpenAI-backed runs via `OPENAI_API_KEY`.
 
+For `taxonomy_v6`, the OpenAI request now uses Structured Outputs via
+`response_format.type = "json_schema"` with strict schema enforcement.
+For RAG calls, the `evidence_ids` field is constrained at request time to the
+retrieved pattern IDs only. If strict parsing fails, the client retries once at
+a slightly higher temperature and then falls back to prompt-only for that
+sample.
+
+Post-hoc prediction correction:
+
+- estimate `pi_hat(c)` on Dev from the mean raw class-score vector;
+- apply temperature scaling on Test using Dev-fitted `T`;
+- divide each temperature-scaled class score by `max(pi_hat(c), 0.05)`;
+- renormalize and take the final argmax.
+
 ## 7. Metrics And Outputs
 
 ### 7.1 `taxonomy_v6`
 
 Per-mode outputs:
 
-- `diagnostics_<dataset>_<mode>.jsonl`
+- `diagnostics_<dataset>_dev_<mode>.jsonl`
+- `diagnostics_<dataset>_test_<mode>.jsonl`
 - `metrics_<dataset>_<mode>.json`
 
 Aggregate output:
@@ -185,12 +202,21 @@ Aggregate output:
 
 Metrics:
 
-- accuracy;
+- accuracy and macro-F1 with paired bootstrap 95% CIs;
 - top-2 accuracy;
 - macro precision / recall / F1;
 - per-class F1;
-- label and prediction distributions;
-- paired prompt-only vs RAG comparison.
+- McNemar prompt-only vs pure-RAG on Test only;
+- pre/post temperature-scaled ECE on Test with equal-frequency 10-bin counts;
+- abstention and grounding diagnostics for the hybrid system;
+- label and prediction distributions.
+
+Observed behavior in the current `gpt-4o` study:
+
+- abstention routing improves robustness by refusing weak BM25 matches instead of forcing low-quality RAG evidence into every sample;
+- Dev priors confirm strong majority-class bias toward `incorrect_operator`;
+- unsmoothed prior correction was numerically unstable on rare classes such as `missing_barrier`;
+- the smoothed correction with `epsilon = 0.05` stabilizes that failure mode, but does not currently beat the uncorrected Test Macro-F1 baseline.
 
 ### 7.2 `classical`
 
