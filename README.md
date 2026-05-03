@@ -128,16 +128,34 @@ python scripts/run_taxonomy_v6.py \
 
 Use `--mock` for an offline smoke run.
 
-This track evaluates two modes over labelled samples from both `Bugs4Q` and `Bugs-QCP`:
+This track evaluates three reported views over labelled samples from both `Bugs4Q` and `Bugs-QCP`:
 
 - `prompt_only`
-- `rag`
+- `rag` (pure RAG, no abstention)
+- `hybrid` (Dev-tuned abstention to prompt-only when `top1_bm25_score < tau`)
+
+Methodology:
+
+- each dataset is split deterministically into 60% Dev and 40% Test;
+- Dev is used only to tune `tau` and the temperature-scaling parameter `T`;
+- final accuracy, macro-F1, bootstrap CIs, McNemar, and ECE are reported only on Test;
+- Test-time class predictions are temperature-scaled and then corrected with a smoothed Bayesian prior estimate from Dev, using `epsilon = 0.05` to avoid division by near-zero class priors.
 
 It writes:
 
-- `diagnostics_<dataset>_<mode>.jsonl`
+- `diagnostics_<dataset>_dev_<mode>.jsonl`
+- `diagnostics_<dataset>_test_<mode>.jsonl`
 - `metrics_<dataset>_<mode>.json`
 - `summary.json`
+
+## Current Findings
+
+The main empirical takeaways from the current `taxonomy_v6` pipeline are:
+
+- Abstention routing helps preserve accuracy by sending weak-retrieval cases to `prompt_only` when the top-1 BM25 score falls below the frozen Dev-tuned threshold `tau`.
+- Dev-set prior estimates show that the LLM is strongly biased toward majority classes such as `incorrect_operator`, while rare classes like `missing_barrier` can receive near-zero mass.
+- A naive prior correction was numerically unstable, so the current implementation uses a smoothed Bayesian correction with `epsilon = 0.05`.
+- That smoothed correction stabilizes the catastrophic over-correction failure mode, but in the current `gpt-4o` run it still does not outperform the uncorrected baseline on held-out Test macro-F1.
 
 ## Running `classical`
 

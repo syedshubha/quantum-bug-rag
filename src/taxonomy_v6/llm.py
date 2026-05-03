@@ -14,7 +14,9 @@ import json
 import os
 import random
 import time
-from typing import Optional
+from typing import Any, Optional
+
+from dotenv import load_dotenv
 
 from .schemas import TAXONOMY_FORCED
 
@@ -29,6 +31,8 @@ class BaseLLM:
 
     def parse(self, raw: str) -> dict:
         try:
+            if isinstance(raw, dict):
+                return raw
             t = raw.strip()
             if t.startswith("```"):
                 lines = t.splitlines()
@@ -46,12 +50,80 @@ class MockLLM(BaseLLM):
 
     def complete(self, messages: list[dict], **kw) -> str:
         scores = {c: round(self.rng.uniform(0.1, 0.95), 2) for c in TAXONOMY_FORCED}
+        retrieved_ids = list(kw.get("retrieved_ids", []))
         return json.dumps({
             "scores": scores,
             "taxonomy_class": max(scores, key=scores.get),
             "suspected_location": "[Mock]",
             "justification": "[Mock]",
+            "evidence_ids": retrieved_ids[:1],
         })
+
+
+def build_response_format(retrieved_ids: list[str]) -> dict[str, Any]:
+    evidence_schema: dict[str, Any] = {
+        "type": "array",
+        "items": {"type": "string"},
+    }
+    if retrieved_ids:
+        evidence_schema["items"] = {"type": "string", "enum": retrieved_ids}
+    else:
+        evidence_schema["maxItems"] = 0
+
+    score_properties = {
+        cls: {"type": "number", "minimum": 0.0, "maximum": 1.0}
+        for cls in TAXONOMY_FORCED
+    }
+    schema = {
+        "name": "taxonomy_v6_response",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "scores": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": score_properties,
+                    "required": list(TAXONOMY_FORCED),
+                },
+                "taxonomy_class": {
+                    "type": "string",
+                    "enum": list(TAXONOMY_FORCED),
+                },
+                "suspected_location": {"type": "string"},
+                "justification": {"type": "string"},
+                "evidence_ids": evidence_schema,
+            },
+            "required": [
+                "scores",
+                "taxonomy_class",
+                "suspected_location",
+                "justification",
+                "evidence_ids",
+            ],
+        },
+    }
+    return {"type": "json_schema", "json_schema": schema}
+
+
+def parsed_response_is_complete(parsed: dict) -> bool:
+    if not isinstance(parsed, dict):
+        return False
+    if parsed.get("_parse_error"):
+        return False
+    if parsed.get("taxonomy_class") not in TAXONOMY_FORCED:
+        return False
+    scores = parsed.get("scores")
+    if not isinstance(scores, dict):
+        return False
+    for cls in TAXONOMY_FORCED:
+        if cls not in scores:
+            return False
+        if not isinstance(scores[cls], (int, float)):
+            return False
+    evidence_ids = parsed.get("evidence_ids")
+    return isinstance(evidence_ids, list)
 
 
 class OpenAILLM(BaseLLM):
@@ -65,6 +137,7 @@ class OpenAILLM(BaseLLM):
         max_tokens: int = DEFAULT_MAX_TOKENS,
     ) -> None:
         from openai import OpenAI
+        load_dotenv()
         self.client = OpenAI(api_key=api_key)
         self.model = model
         self.temperature = temperature
@@ -74,13 +147,19 @@ class OpenAILLM(BaseLLM):
         from openai import RateLimitError, APIError
         for attempt in range(6):
             try:
-                resp = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    temperature=kw.get("temperature", self.temperature),
-                    max_completion_tokens=kw.get(
+                request = {
+                    "model": self.model,
+                    "messages": messages,
+                    "temperature": kw.get("temperature", self.temperature),
+                    "max_completion_tokens": kw.get(
                         "max_completion_tokens", self.max_tokens
                     ),
+                }
+                response_format = kw.get("response_format")
+                if response_format is not None:
+                    request["response_format"] = response_format
+                resp = self.client.chat.completions.create(
+                    **request,
                 )
                 return resp.choices[0].message.content or ""
             except RateLimitError:
@@ -98,6 +177,7 @@ def build_llm(use_mock: bool = False, model: str = DEFAULT_MODEL) -> BaseLLM:
     """Construct the v6 LLM client from environment configuration."""
     if use_mock:
         return MockLLM(seed=42)
+    load_dotenv()
     api_key: Optional[str] = None
     try:  # Kaggle environment
         from kaggle_secrets import UserSecretsClient  # type: ignore

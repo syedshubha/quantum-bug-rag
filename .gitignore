@@ -234,3 +234,6 @@ data/smoke_backup/
 
 # External local datasets
 external_data/
+
+#GPT-API
+.env

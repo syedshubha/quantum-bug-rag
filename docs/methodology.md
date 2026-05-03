@@ -70,22 +70,44 @@ Entries are filtered for quality and mapped into taxonomy classes with a keyword
 `src/taxonomy_v6/retriever.py` uses BM25 with two extra steps:
 
 - framework detection from the query code;
-- diversification so the retrieved pool spans distinct taxonomy classes when possible.
+- framework-aware score boosting;
+- a hard BM25 floor after ranking;
+- `top1_bm25_score` logging for abstention routing.
 
 ### Evaluation
 
-`src/taxonomy_v6/evaluator.py` runs:
+`src/taxonomy_v6/evaluator.py` and `src/taxonomy_v6/analysis.py` run:
 
 - `prompt_only`
 - `rag`
+- `hybrid` (RAG with Dev-tuned abstention to prompt-only)
+
+Methodology constraints:
+
+- each labelled dataset is split deterministically into 60% Dev and 40% Test;
+- Dev is used only to tune the BM25 routing threshold `tau` and the temperature-scaling parameter `T`;
+- Dev is also used to estimate the model prior `pi_hat(c)` as the empirical mean of raw class-score vectors;
+- before final Test metrics are computed, scores are temperature-scaled and then prior-corrected with a smoothed floor `epsilon = 0.05`;
+- all headline metrics are reported only on the strictly held-out Test split;
+- prompt-only vs pure-RAG comparisons remain paired at the sample level.
 
 Metrics include:
 
-- accuracy;
+- accuracy and macro-F1;
+- 95% bootstrap confidence intervals for accuracy and macro-F1;
 - top-2 accuracy;
-- macro F1 / precision / recall;
+- macro precision / recall / F1;
 - per-class F1;
-- paired prompt-only vs RAG comparison counts.
+- McNemar prompt-only vs pure-RAG on Test;
+- ECE before and after Dev-fitted temperature scaling, with equal-frequency bin counts;
+- abstention and grounding reporting for the hybrid system.
+
+### Empirical Findings
+
+- The Dev priors make the model bias visible: `incorrect_operator` dominates the average score mass, while rare classes such as `missing_barrier` can receive extremely small prior mass.
+- Abstention routing based on `top1_bm25_score < tau` protects headline accuracy by avoiding weakly grounded RAG calls.
+- Unsmoothed prior correction over-amplified rare classes and caused large Macro-F1 regressions.
+- The current implementation therefore uses a smoothed prior floor of `epsilon = 0.05`, which stabilizes the correction numerically, though in the current `gpt-4o` held-out Test run it remains primarily a bias-diagnostic device rather than a net Macro-F1 win over the uncorrected baseline.
 
 ## `classical` Track
 
@@ -165,4 +187,5 @@ Notebook-only items that remain outside the reusable CLI paths:
 - Do not mix evaluation targets into retrieval-source corpora.
 - In the legacy scaffold, keep `Bugs4Q` evaluation samples out of the KB.
 - In `taxonomy_v6`, the validated KB is built from release notes and LintQ summaries, not from the evaluated snippets themselves.
+- In `taxonomy_v6`, tune `tau`, temperature `T`, and class-prior estimates `pi_hat(c)` on Dev only and reserve Test exclusively for final accuracy, F1, CI, McNemar, and ECE reporting.
 - In `classical`, Bugs4Q is used only as an external holdout and not as a source for the classical-vs-quantum KB.

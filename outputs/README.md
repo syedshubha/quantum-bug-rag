@@ -31,14 +31,18 @@ Example diagnostic object:
 
 Files written by `scripts/run_taxonomy_v6.py`:
 
-- `diagnostics_bugs4q_prompt_only.jsonl`
-- `diagnostics_bugs4q_rag.jsonl`
-- `diagnostics_bugsqcp_prompt_only.jsonl`
-- `diagnostics_bugsqcp_rag.jsonl`
+- `diagnostics_<dataset>_dev_prompt_only.jsonl`
+- `diagnostics_<dataset>_dev_rag.jsonl`
+- `diagnostics_<dataset>_dev_hybrid.jsonl`
+- `diagnostics_<dataset>_test_prompt_only.jsonl`
+- `diagnostics_<dataset>_test_rag.jsonl`
+- `diagnostics_<dataset>_test_hybrid.jsonl`
 - `metrics_bugs4q_prompt_only.json`
 - `metrics_bugs4q_rag.json`
+- `metrics_bugs4q_hybrid.json`
 - `metrics_bugsqcp_prompt_only.json`
 - `metrics_bugsqcp_rag.json`
+- `metrics_bugsqcp_hybrid.json`
 - `summary.json`
 
 Diagnostic shape:
@@ -56,13 +60,33 @@ Diagnostic shape:
     "wrong_initial_state": 0.10,
     "measurement_error": 0.84
   },
+  "evidence_ids": ["lintq_ql-double-measurement"],
   "suspected_location": "qc.measure(...)",
   "justification": "...",
   "ground_truth": "measurement_error",
   "correct": true,
-  "retrieved_patterns": ["qiskit_releasenotes_fixes_x", "lintq_ql-double-measurement"]
+  "retrieved_patterns": ["qiskit_releasenotes_fixes_x", "lintq_ql-double-measurement"],
+  "top1_bm25_score": 7.412,
+  "routed_mode": "rag",
+  "final_mode": "rag",
+  "abstained_to_prompt_only": false,
+  "prompt_only_fallback_used": false,
+  "fallback_reason": "",
+  "attribution_failure": false,
+  "grounded": true,
+  "parse_retry_count": 0
 }
 ```
+
+`metrics_<dataset>_hybrid.json` contains an `abstention_and_grounding` block with:
+
+- attribution failure rate;
+- accuracy conditional on grounded vs ungrounded evidence;
+- abstention rate;
+- accuracy on the RAG-routed subset;
+- accuracy on the prompt-only-routed subset;
+- combined hybrid accuracy;
+- pure-RAG accuracy on the same Test samples.
 
 ## 3. `classical` Outputs
 
