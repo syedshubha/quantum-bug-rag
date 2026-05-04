@@ -158,6 +158,34 @@ Dataset:
 - executed notebook dataset size: `233` labeled samples
 - class distribution: `134` classical / `99` quantum
 
+Study I dataset provenance and structure:
+
+- the executed notebook reads an external JSON file named
+  `bug_patterns_categorized.json`
+- in the notebook, this file is loaded from a Kaggle-style dataset path rather
+  than from a vendored repository folder inside this project
+- each retained record is expected to expose:
+  - `bug_category` with value `classical` or `quantum`
+  - `name`
+  - `description`
+  - `example_code` or `code`
+- the refactored loader in `src/study_i/dataset.py` preserves that same schema
+  and filters out any record whose `bug_category` is not one of the two Study I
+  labels
+- labels are treated as externally curated ground truth supplied by the dataset,
+  not generated inside this repository
+- the repository currently documents the executed dataset size and class balance,
+  but does not independently reconstruct the upstream labeling process from raw
+  source repositories in the way Study II does
+
+Implication for the paper:
+
+- Study I should be described as a supervised binary classification experiment
+  over an externally prepared labeled bug-report dataset
+- if a final paper version needs stronger dataset provenance, the exact source
+  release or archival link for `bug_patterns_categorized.json` should be cited
+  explicitly in the dataset section or appendix
+
 Training protocol:
 
 - backbone: `microsoft/codebert-base`
