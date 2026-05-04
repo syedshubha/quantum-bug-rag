@@ -1,0 +1,50 @@
+<svg width="800" height="500" viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg">
+  <rect width="800" height="500" fill="#ffffff" />
+  
+  <text x="400" y="40" font-family="Arial, sans-serif" font-size="20" text-anchor="middle" fill="#333">Knowledge base source distribution</text>
+  
+  <line x1="80" y1="350" x2="750" y2="350" stroke="#eee" stroke-width="1" />
+  <line x1="80" y1="285" x2="750" y2="285" stroke="#eee" stroke-width="1" />
+  <line x1="80" y1="220" x2="750" y2="220" stroke="#eee" stroke-width="1" />
+  <line x1="80" y1="155" x2="750" y2="155" stroke="#eee" stroke-width="1" />
+  <line x1="80" y1="90" x2="750" y2="90" stroke="#eee" stroke-width="1" />
+
+  <g font-family="Arial, sans-serif" font-size="14" text-anchor="end" fill="#666">
+    <text x="70" y="355">0</text>
+    <text x="70" y="290">200</text>
+    <text x="70" y="225">400</text>
+    <text x="70" y="160">600</text>
+    <text x="70" y="95">800</text>
+    <text x="70" y="30">1000</text>
+  </g>
+
+  <g fill="#6a8caf" stroke="#4a6a8a" stroke-width="1">
+    <rect x="100" y="70" width="80" height="280" />
+    <rect x="210" y="160" width="80" height="190" />
+    <rect x="320" y="310" width="80" height="40" />
+    <rect x="430" y="342" width="80" height="8" />
+    <rect x="540" y="346" width="80" height="4" />
+    <rect x="650" y="347" width="80" height="3" />
+  </g>
+
+  <g font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#ffffff">
+    <text x="140" y="90">1089</text>
+    <text x="250" y="180">746</text>
+    <text x="360" y="330">152</text>
+    <text x="470" y="338" fill="#4a6a8a">31</text>
+    <text x="580" y="342" fill="#4a6a8a">16</text>
+    <text x="690" y="343" fill="#4a6a8a">10</text>
+  </g>
+
+  <g font-family="Arial, sans-serif" font-size="12" text-anchor="end" fill="#333">
+    <text transform="translate(145, 365) rotate(-30)">qiskit releasenotes</text>
+    <text transform="translate(255, 365) rotate(-30)">pennylane changelog</text>
+    <text transform="translate(365, 365) rotate(-30)">qiskit aer releasenotes</text>
+    <text transform="translate(475, 365) rotate(-30)">ibm runtime changelog</text>
+    <text transform="translate(585, 365) rotate(-30)">qiskit ignis releasenotes</text>
+    <text transform="translate(695, 365) rotate(-30)">lintq rules</text>
+  </g>
+
+  <line x1="80" y1="350" x2="750" y2="350" stroke="#333" stroke-width="1.5" />
+  <line x1="80" y1="350" x2="80" y2="60" stroke="#333" stroke-width="1.5" />
+</svg>
