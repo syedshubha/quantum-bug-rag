@@ -3,24 +3,27 @@
 Research code for LLM-based bug analysis in quantum software. The repository now contains:
 
 - the original modular scaffold for prompt-only, RAG, and static-baseline experiments over prepared `Bugs4Q` data;
+- a modular Study I binary classifier refactored from `quantum-vs-classical-bug-prediction.ipynb`;
 - a refactored five-class taxonomy track from `quantum_bug_detecttion_taxonomy.ipynb`;
 - a refactored binary classical-vs-quantum track from `quantum-software-bug-detection-rag-project-v6_classical.ipynb`.
 
-The notebooks are still kept as provenance and exploratory-analysis artifacts. The new `src/taxonomy_v6`, `src/classical`, and matching `scripts/` entry points are the reusable implementations.
+The notebooks are still kept as provenance and exploratory-analysis artifacts. The reusable implementations now live under `src/study_i`, `src/taxonomy_v6`, `src/classical`, and matching `scripts/` entry points.
 
 ## Project Tracks
 
 | Track | Purpose | Main code | Entry point |
 |------|---------|-----------|-------------|
 | `legacy scaffold` | Prompt-only, RAG, and static baseline over prepared local datasets and `knowledge_base/` | `src/` top-level modules | `scripts/run_prompt_only.py`, `scripts/run_rag.py`, `scripts/run_static_baseline.py` |
+| `study_i` | Repeated stratified CV fine-tuning of `microsoft/codebert-base` for binary `classical` vs `quantum` bug prediction | `src/study_i/` | `scripts/run_study_i_codebert.py` |
 | `taxonomy_v6` | Forced-choice 5-class quantum bug classification with validated KB and framework-aware retrieval | `src/taxonomy_v6/` | `scripts/run_taxonomy_v6.py` |
-| `classical` | Binary classification of bugs as `quantum` vs `classical`, including biased vs balanced retrieval | `src/classical/` | `scripts/run_classical_vs_quantum.py` |
+| `classical` | Older LLM/RAG binary classification of bugs as `quantum` vs `classical`, including biased vs balanced retrieval | `src/classical/` | `scripts/run_classical_vs_quantum.py` |
 
 ## Repository Structure
 
 ```text
 quantum-bug-rag/
 ├── README.md
+├── quantum-vs-classical-bug-prediction.ipynb
 ├── quantum_bug_detecttion_taxonomy.ipynb
 ├── quantum-software-bug-detection-rag-project-v6_classical.ipynb
 ├── src/
@@ -34,6 +37,12 @@ quantum-bug-rag/
 │   │   ├── prompts.py
 │   │   ├── retriever.py
 │   │   └── schemas.py
+│   ├── study_i/
+│   │   ├── analysis.py
+│   │   ├── dataset.py
+│   │   ├── plotting.py
+│   │   ├── schemas.py
+│   │   └── training.py
 │   └── taxonomy_v6/
 │       ├── dataset.py
 │       ├── evaluator.py
@@ -44,6 +53,7 @@ quantum-bug-rag/
 │       └── schemas.py
 ├── scripts/
 │   ├── run_classical_vs_quantum.py
+│   ├── run_study_i_codebert.py
 │   ├── run_taxonomy_v6.py
 │   ├── run_prompt_only.py
 │   ├── run_rag.py
@@ -70,20 +80,21 @@ For OpenAI-backed runs:
 export OPENAI_API_KEY="sk-..."
 ```
 
-The new notebook-refactored scripts use `rank_bm25`, `pyyaml`, `numpy`, and `scikit-learn` from `requirements.txt`.
+The notebook-refactored scripts use `rank_bm25`, `pyyaml`, `numpy`, `scikit-learn`, and, for Study I, the Hugging Face / PyTorch stack declared in `requirements.txt`.
 
 ## Datasets And Roles
 
 | Dataset / Repo | Role |
 |----------------|------|
-| `Bugs4Q` | Benchmark corpus of buggy quantum programs. Used by the legacy scaffold and both new tracks. |
+| `Bugs4Q` | Benchmark corpus of buggy quantum programs. Used by the legacy scaffold, Study II, and the older binary LLM track. |
 | `Bugs-QCP` | Auxiliary corpus. Used as a labelled source in the `classical` track and as a quantum sample source in `taxonomy_v6`. |
+| external labeled JSON of bug reports | Study I dataset of `(name, description, code)` triples with `bug_category ∈ {classical, quantum}`. |
 | `Qiskit`, `Qiskit Aer`, `Qiskit Ignis`, `Qiskit IBM Runtime`, `PennyLane` | Source repositories for validated KB extraction in `taxonomy_v6`. |
 | `CPython`, `NumPy` | Classical release-note sources for the symmetric KB in the `classical` track. |
 
 The legacy scaffold expects prepared local data under `data/` and a JSON knowledge base under `knowledge_base/`.
 
-The notebook-refactored scripts expect cloned upstream repositories under a `--work-dir` that you provide.
+The notebook-refactored scripts expect cloned upstream repositories under a `--work-dir` that you provide, except for Study I, which expects a labeled JSON file path.
 
 ## Running The Legacy Scaffold
 
@@ -101,6 +112,54 @@ python scripts/run_prompt_only.py --data-dir data/bugs4q --output-dir outputs --
 python scripts/run_rag.py --data-dir data/bugs4q --kb-dir knowledge_base --output-dir outputs --config config.yaml
 python scripts/run_static_baseline.py --data-dir data/bugs4q --output-dir outputs
 ```
+
+## Running Study I
+
+Study I fine-tunes `microsoft/codebert-base` for binary `classical` vs `quantum`
+bug prediction from triples of:
+
+- bug name
+- natural-language description
+- source-code snippet
+
+Run:
+
+```bash
+PYTHONPATH=. python scripts/run_study_i_codebert.py \
+  --data-path /path/to/bug_patterns_categorized.json \
+  --results-dir outputs/study_i_codebert
+```
+
+This reproduces the notebook protocol:
+
+- inverse-frequency class-weighted cross-entropy
+- minority oversampling inside each training fold
+- 5-fold stratified cross-validation
+- 5 independent CV seeds
+- 25 fold-runs total
+- manual early stopping on validation macro-F1
+
+Current notebook result snapshot:
+
+- dataset: `233` labeled samples (`134` classical, `99` quantum)
+- mean accuracy across `25` fold-runs: `0.767 ± 0.057`
+- mean macro-F1 across `25` fold-runs: `0.763 ± 0.056`
+- mean ROC-AUC across `25` fold-runs: `0.855 ± 0.044`
+- pooled per-class F1:
+  - `classical`: `0.7875`
+  - `quantum`: `0.7410`
+  - pooled macro-F1: `0.7642`
+
+The script writes:
+
+- `summary.json`
+- `per_fold.csv`
+- `epoch_logs.json`
+- `fig1_confusion_matrix.png`
+- `fig2_fold_distribution.png`
+- `fig3_roc_curve.png`
+- `fig4_learning_curves.png`
+- `fig5_summary_panel.png`
 
 ## Running `taxonomy_v6`
 
@@ -150,7 +209,14 @@ It writes:
 
 ## Current Findings
 
-The main empirical takeaways from the current `taxonomy_v6` pipeline are:
+The paper-facing studies support two separate conclusions.
+
+Study I:
+
+- CodeBERT reaches `0.767 ± 0.057` mean accuracy and `0.763 ± 0.056` mean macro-F1 across `25` repeated stratified fold-runs on the binary `classical` vs `quantum` task.
+- Pooled per-class F1 is `0.7875` for `classical` and `0.7410` for `quantum`, showing the binary task is learnable but not trivial.
+
+Study II:
 
 - Abstention routing helps preserve accuracy by sending weak-retrieval cases to `prompt_only` when the top-1 BM25 score falls below the frozen Dev-tuned threshold `tau`.
 - Dev-set prior estimates show that the LLM is strongly biased toward majority classes such as `incorrect_operator`, while rare classes like `missing_barrier` can receive near-zero mass.
@@ -199,13 +265,14 @@ It writes:
 
 ## Notebook Refactor Coverage
 
-The new module/script paths cover the core experiment logic from both notebooks:
+The new module/script paths cover the core experiment logic from all three main notebooks:
 
 - dataset adapters;
 - KB construction;
 - retrievers;
 - prompt builders;
 - LLM clients;
+- transformer fine-tuning loops;
 - evaluation loops and JSON artefact writing.
 
 What remains notebook-only today:
@@ -231,7 +298,7 @@ See:
 pytest tests/ -v
 ```
 
-The current automated tests mainly cover the legacy scaffold. The two new tracks are presently documented and script-driven, with syntax-level validation but no dedicated test module yet.
+The current automated tests mainly cover the legacy scaffold. The notebook-refactored tracks are still lighter on automated coverage, though Study I now has dedicated tests around dataset loading and result aggregation.
 
 ## License
 
