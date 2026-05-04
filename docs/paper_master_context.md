@@ -164,6 +164,13 @@ Study I dataset provenance and structure:
   `bug_patterns_categorized.json`
 - in the notebook, this file is loaded from a Kaggle-style dataset path rather
   than from a vendored repository folder inside this project
+- the exact path used in the executed notebook is:
+  `/kaggle/input/datasets/saidurlsu/classical-vs-quantum/bug_patterns_categorized.json`
+- notebook metadata also records the Kaggle datasource as:
+  - dataset handle: `saidurlsu/classical-vs-quantum`
+  - dataset ID: `10269638`
+  - source ID: `16011573`
+  - databundle version ID: `16975613`
 - each retained record is expected to expose:
   - `bug_category` with value `classical` or `quantum`
   - `name`
@@ -177,6 +184,15 @@ Study I dataset provenance and structure:
 - the repository currently documents the executed dataset size and class balance,
   but does not independently reconstruct the upstream labeling process from raw
   source repositories in the way Study II does
+- the exact license and archival record for this external Kaggle dataset are not
+  recoverable from repository-local artifacts alone
+- in this environment, unauthenticated Kaggle metadata endpoints for the handle
+  return `403 datasets.get denied`, so the dataset license should be copied
+  directly from the Kaggle dataset page before final paper submission
+- therefore the exact provenance that is currently auditable is:
+  - the Kaggle handle above
+  - the notebook's recorded dataset-version metadata
+  - the executed file path used in the original Study I run
 
 Implication for the paper:
 
@@ -197,6 +213,19 @@ Training protocol:
 - 25 fold-runs total
 - within-fold validation split: `10%`
 - manual early stopping on validation macro-F1 with patience `4`
+
+Important Study I implementation detail:
+
+- within each training fold, oversampling happens before the internal
+  validation split
+- the actual order used in both the notebook and the refactored runner is:
+  1. take the outer cross-validation training fold
+  2. oversample the minority class to balance the fold
+  3. perform the stratified `10%` train/validation split on that oversampled fold
+- consequence:
+  - the validation set is sampled from the oversampled fold rather than from the
+    original imbalanced fold
+  - this is the procedure that produced the preserved Study I results
 
 Current preserved notebook results:
 
@@ -259,6 +288,18 @@ Important runtime arguments:
 - `--limit`: optional smoke-test cap on sample count; not used in final runs
 - `--mock`: bypasses the live OpenAI API for local dry-runs; not used in final
   paper results
+
+Final Study II retrieval settings used in the saved full summaries:
+
+- `top_k = 5`
+- `bm25_floor = 0.0`
+- this value appears explicitly in:
+  - `outputs/results_4o/summary.json`
+  - `outputs/results_54/summary.json`
+  - `outputs/results_4o_priorcorr_eps005/summary.json`
+- therefore the effective Study II score floor in the final reported runs is:
+  - `s_min = 0.0`
+  - applied after the framework boost, i.e. against the boosted retrieval score
 
 Expected `work-dir` contents during a full run:
 
@@ -473,6 +514,25 @@ Important implementation choices:
 - retrieval is raw rank-based top-`k`
 - the top-1 BM25 score is logged for routing
 
+Implementation-exact BM25 note:
+
+- the retriever uses `rank_bm25.BM25Okapi`, not a handwritten BM25 scorer
+- the underlying implementation is the package's BM25Okapi / ATIRE-style
+  variant with defaults:
+  - `k1 = 1.5`
+  - `b = 0.75`
+  - `epsilon = 0.25`
+- term IDF is computed internally as:
+  - `idf(q) = log(N - df(q) + 0.5) - log(df(q) + 0.5)`
+- if that IDF is negative, `rank_bm25` replaces it with:
+  - `epsilon * average_idf`
+- therefore the paper's BM25 equation is accurate as a high-level description
+  of the framework multiplier, but not fully implementation-exact with respect
+  to the package's internal IDF flooring / smoothing behavior
+- if the paper wants exact implementation wording, describe it as:
+  - `rank_bm25.BM25Okapi` with package-default negative-IDF flooring, followed
+    by a `1.5x` framework-tag multiplier and a final hard score floor of `0.0`
+
 Why diversification was removed:
 
 - earlier diversification forced artificial taxonomy coverage in the retrieved
@@ -606,6 +666,23 @@ After parsing:
 
 In the live 5-sample smoke test, strict JSON parsing succeeded cleanly and no
 attribution failures were observed.
+
+Full-run diagnostic verification:
+
+- this claim is also supported by direct inspection of the saved full Test
+  JSONL diagnostics, not just by the summary files
+- checked files:
+  - the six `diagnostics_*_test_*.jsonl` files in `outputs/results_4o/`
+  - the six corresponding `diagnostics_*_test_*.jsonl` files in
+    `outputs/results_54/`
+- aggregate counts from those saved files are:
+  - `outputs/results_4o`: `108` Test rows, `0` parse retries, `0`
+    prompt-only fallbacks, `0` attribution failures
+  - `outputs/results_54`: `108` Test rows, `0` parse retries, `0`
+    prompt-only fallbacks, `0` attribution failures
+- so the statement that the recorded full Test runs had `0` parse retries, `0`
+  fallbacks, and `0` attribution failures is fully backed by the actual saved
+  diagnostics
 
 ## 9. Modes Evaluated
 
