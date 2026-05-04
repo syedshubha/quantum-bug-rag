@@ -4,16 +4,18 @@
 
 ## 1. System Overview
 
-The repository has three distinct experiment paths:
+The repository has four distinct experiment paths:
 
 | Track | Objective | Primary code |
 |------|-----------|--------------|
 | `legacy scaffold` | Evaluate prompt-only, RAG, and static baseline over prepared Bugs4Q data and a JSON KB | top-level `src/` modules |
+| `study_i` | Fine-tune CodeBERT for binary `classical` vs `quantum` bug prediction | `src/study_i/` |
 | `taxonomy_v6` | Forced-choice 5-class quantum bug classification using validated release-note knowledge | `src/taxonomy_v6/` |
-| `classical` | Distinguish quantum bugs from classical bugs in quantum-software repositories | `src/classical/` |
+| `classical` | Older LLM/RAG binary classifier for quantum-vs-classical bug distinction | `src/classical/` |
 
-The two notebook-refactored tracks were introduced to preserve the experimental logic of:
+The paper-facing studies are `study_i` and `taxonomy_v6`. The notebook-refactored tracks were introduced to preserve the experimental logic of:
 
+- `quantum-vs-classical-bug-prediction.ipynb`
 - `quantum_bug_detecttion_taxonomy.ipynb`
 - `quantum-software-bug-detection-rag-project-v6_classical.ipynb`
 
@@ -21,7 +23,32 @@ while making them scriptable and reusable.
 
 ## 2. Track Architecture
 
-### 2.1 `taxonomy_v6`
+### 2.1 `study_i`
+
+Files:
+
+- `src/study_i/dataset.py`
+- `src/study_i/training.py`
+- `src/study_i/analysis.py`
+- `src/study_i/plotting.py`
+- `src/study_i/schemas.py`
+- `scripts/run_study_i_codebert.py`
+
+Execution flow:
+
+1. Load an external labeled JSON dataset of `(name, description, code)` bug-report triples.
+2. Filter to `bug_category ∈ {classical, quantum}`.
+3. Concatenate the text triple into one CodeBERT input sequence.
+4. Run 5-fold stratified cross-validation.
+5. Repeat the 5-fold split across 5 random seeds for 25 fold-runs total.
+6. Inside each fold:
+   - minority-oversample the training set
+   - compute inverse-frequency class weights
+   - fit `microsoft/codebert-base` with weighted cross-entropy and label smoothing
+   - hold out a 10% stratified validation split for early stopping on macro-F1
+7. Aggregate per-fold metrics, pooled predictions, and publication-ready figures.
+
+### 2.2 `taxonomy_v6`
 
 Files:
 
@@ -43,7 +70,7 @@ Execution flow:
 5. On Test, run prompt-only and pure-RAG baselines, derive the abstention-routed hybrid system with the frozen `tau`, apply temperature scaling, then apply smoothed Bayesian prior correction with `epsilon = 0.05` before final argmax classification.
 6. Write split-specific diagnostics, per-mode Test metrics, and a summary with confidence intervals, McNemar, and ECE.
 
-### 2.2 `classical`
+### 2.3 `classical`
 
 Files:
 
@@ -65,13 +92,27 @@ Execution flow:
 5. Evaluate prompt-only, biased-RAG, and balanced-RAG modes.
 6. Write diagnostics and summary metrics.
 
-### 2.3 Legacy Scaffold
+### 2.4 Legacy Scaffold
 
 The original top-level `src/` modules remain for the project’s earlier prepared-data workflow. They use `data/bugs4q/` and `knowledge_base/` rather than raw upstream repository clones.
 
 ## 3. Data Handling
 
-### 3.1 `taxonomy_v6` Data Handling
+### 3.1 `study_i` Data Handling
+
+`load_labeled_bug_reports()`:
+
+- reads a JSON list from a user-provided `--data-path`;
+- keeps only `classical` / `quantum` labels;
+- preserves `name`, `description`, `example_code` or `code`, and metadata;
+- assigns a stable `sample_id`.
+
+`to_training_arrays()`:
+
+- concatenates `(name, description, code)` with newline separators;
+- maps labels to `{classical: 0, quantum: 1}` arrays.
+
+### 3.2 `taxonomy_v6` Data Handling
 
 `build_bugs4q()`:
 
@@ -85,7 +126,7 @@ The original top-level `src/` modules remain for the project’s earlier prepare
 - reconstructs focused buggy snippets from unified diffs;
 - optionally restricts to quantum-labelled entries.
 
-### 3.2 `classical` Data Handling
+### 3.3 `classical` Data Handling
 
 `build_bqcp()`:
 
@@ -101,7 +142,12 @@ The original top-level `src/` modules remain for the project’s earlier prepare
 
 ## 4. Knowledge Bases
 
-### 4.1 `taxonomy_v6` Validated KB
+### 4.1 `study_i`
+
+Study I has no external retrieval knowledge base. It is a supervised text/code
+fine-tuning track rather than a prompt-based RAG system.
+
+### 4.2 `taxonomy_v6` Validated KB
 
 Sources:
 
@@ -118,7 +164,7 @@ Processing:
 - classify remaining text into the project taxonomy with a keyword table;
 - attach framework and section tags for retrieval-time use.
 
-### 4.2 `classical` Symmetric KB
+### 4.3 `classical` Symmetric KB
 
 Quantum side:
 
@@ -135,7 +181,12 @@ The two halves are size-matched by proportional downsampling. This is part of th
 
 ## 5. Retrieval
 
-### 5.1 `taxonomy_v6`
+### 5.1 `study_i`
+
+Study I has no retrieval stage. The model sees only the concatenated
+`(name, description, code)` input sequence.
+
+### 5.2 `taxonomy_v6`
 
 Retriever properties:
 
@@ -145,7 +196,7 @@ Retriever properties:
 - raw top-K ranking with a hard BM25 score floor;
 - `top1_bm25_score` recorded for abstention routing.
 
-### 5.2 `classical`
+### 5.3 `classical`
 
 Retriever properties:
 
@@ -157,20 +208,25 @@ This supports the comparison between:
 - `biased_rag`: retrieval from a quantum-only KB;
 - `balanced_rag`: retrieval from equal-sized quantum and classical KB halves.
 
-## 6. Prompting And Model Interaction
+## 6. Model Interaction
 
-Both notebook-refactored tracks keep lightweight per-track prompt builders and LLM clients instead of reusing the older project-wide abstractions.
+The repository now contains both supervised-transformer and prompt-based tracks.
 
-Reason:
+Study I:
 
-- the notebook experiments had different response schemas;
-- the classical track predicts a continuous `score_quantum`;
-- the taxonomy track predicts per-class scores and forced-choice labels.
+- fine-tunes `microsoft/codebert-base` directly with Hugging Face Trainer;
+- uses no external prompts or LLM API;
+- predicts a binary label and calibrated class probabilities from the classifier head.
+
+Prompt-based tracks (`taxonomy_v6` and `classical`):
+
+- keep lightweight per-track prompt builders and LLM clients instead of reusing the older project-wide abstractions;
+- have different response schemas and retrieval conditions.
 
 Each track supports:
 
-- `--mock` for offline deterministic smoke runs;
-- OpenAI-backed runs via `OPENAI_API_KEY`.
+- Study I: a fully local transformer fine-tuning loop;
+- `taxonomy_v6` / `classical`: `--mock` for offline deterministic smoke runs and OpenAI-backed runs via `OPENAI_API_KEY`.
 
 For `taxonomy_v6`, the OpenAI request now uses Structured Outputs via
 `response_format.type = "json_schema"` with strict schema enforcement.
@@ -188,7 +244,37 @@ Post-hoc prediction correction:
 
 ## 7. Metrics And Outputs
 
-### 7.1 `taxonomy_v6`
+### 7.1 `study_i`
+
+Per-run outputs:
+
+- `summary.json`
+- `per_fold.csv`
+- `epoch_logs.json`
+- `fig1_confusion_matrix.png`
+- `fig2_fold_distribution.png`
+- `fig3_roc_curve.png`
+- `fig4_learning_curves.png`
+- `fig5_summary_panel.png`
+
+Metrics:
+
+- mean and standard deviation of accuracy across 25 fold-runs;
+- mean and standard deviation of macro-F1 across 25 fold-runs;
+- mean and standard deviation of weighted F1 across 25 fold-runs;
+- mean and standard deviation of ROC-AUC across 25 fold-runs;
+- pooled classification report across all fold predictions;
+- pooled confusion matrix.
+
+Observed behavior from the executed notebook:
+
+- `233` labeled samples (`134` classical, `99` quantum)
+- repeated-CV accuracy `0.767 ± 0.057`
+- repeated-CV macro-F1 `0.763 ± 0.056`
+- repeated-CV ROC-AUC `0.855 ± 0.044`
+- pooled per-class F1 of `0.7875` for `classical` and `0.7410` for `quantum`
+
+### 7.2 `taxonomy_v6`
 
 Per-mode outputs:
 
@@ -218,7 +304,7 @@ Observed behavior in the current `gpt-4o` study:
 - unsmoothed prior correction was numerically unstable on rare classes such as `missing_barrier`;
 - the smoothed correction with `epsilon = 0.05` stabilizes that failure mode, but does not currently beat the uncorrected Test Macro-F1 baseline.
 
-### 7.2 `classical`
+### 7.3 `classical`
 
 Per-mode outputs:
 

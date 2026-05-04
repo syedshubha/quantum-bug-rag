@@ -88,7 +88,45 @@ Diagnostic shape:
 - combined hybrid accuracy;
 - pure-RAG accuracy on the same Test samples.
 
-## 3. `classical` Outputs
+## 3. `study_i` Outputs
+
+Files written by `scripts/run_study_i_codebert.py`:
+
+- `summary.json`
+- `per_fold.csv`
+- `epoch_logs.json`
+- `fig1_confusion_matrix.png`
+- `fig2_fold_distribution.png`
+- `fig3_roc_curve.png`
+- `fig4_learning_curves.png`
+- `fig5_summary_panel.png`
+
+`summary.json` contains:
+
+- dataset size and class distribution;
+- repeated-CV setup (`n_folds`, seeds, number of fold-runs);
+- the Study I hyperparameters;
+- mean and standard deviation of accuracy, macro-F1, weighted F1, and ROC-AUC;
+- pooled accuracy / macro-F1 / weighted F1 / ROC-AUC;
+- a pooled classification report;
+- a pooled confusion matrix;
+- raw per-fold predictions and epoch logs.
+
+`per_fold.csv` contains one row per fold-run with:
+
+- `repeat`
+- `fold`
+- `cv_seed`
+- `train_seed`
+- `n_train`
+- `n_validation`
+- `n_test`
+- `accuracy`
+- `f1_macro`
+- `f1_weighted`
+- `roc_auc`
+
+## 4. `classical` Outputs
 
 Files written by `scripts/run_classical_vs_quantum.py`:
 

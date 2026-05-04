@@ -12,6 +12,11 @@ statsmodels>=0.14
 rank_bm25>=0.2
 sentence-transformers>=2.2
 faiss-cpu>=1.7
+matplotlib>=3.8
+torch>=2.2
+transformers>=4.40
+datasets>=2.18
+accelerate>=0.29
 
 # LLM clients
 openai>=1.0

@@ -2,13 +2,30 @@
 
 ## Overview
 
-This repository now contains three related experiment tracks for bug analysis in quantum software:
+This repository now contains four related experiment tracks for bug analysis in quantum software:
 
 1. `legacy scaffold`: prompt-only, RAG, and static-baseline experiments over prepared `Bugs4Q` data and a JSON knowledge base.
-2. `taxonomy_v6`: forced-choice five-class taxonomy classification for quantum bugs.
-3. `classical`: binary classification of bugs as `quantum` or `classical`.
+2. `study_i`: CodeBERT fine-tuning for binary `classical` vs `quantum` bug prediction.
+3. `taxonomy_v6`: forced-choice five-class taxonomy classification for quantum bugs.
+4. `classical`: older LLM/RAG binary classification of bugs as `quantum` or `classical`.
 
-The two new tracks were refactored from the project notebooks into `src/taxonomy_v6`, `src/classical`, and matching CLI scripts.
+The paper-facing studies are `study_i` and `taxonomy_v6`. The new tracks were refactored from the project notebooks into `src/study_i`, `src/taxonomy_v6`, `src/classical`, and matching CLI scripts.
+
+## Paper Framing
+
+Let `D = {(x_i, y_i)}_{i=1}^N` denote a dataset of bug reports, where each
+`x_i = (name_i, description_i, code_i)` is a triple of natural-language and
+source-code fields.
+
+- In Study I, `Y = {classical, quantum}` and the task is binary classification
+  of whether a defect arises from quantum-specific circuit semantics or from a
+  conventional software error embedded inside a quantum program.
+- In Study II, `Y = {incorrect_operator, incorrect_qubit_mapping,
+  missing_barrier, wrong_initial_state, measurement_error}` and the task is
+  fine-grained taxonomy prediction.
+
+Study I establishes whether quantum-aware tooling is needed at all. Study II
+determines which diagnostic action is warranted.
 
 ## Datasets
 
@@ -28,6 +45,17 @@ The two new tracks were refactored from the project notebooks into `src/taxonomy
 - In `taxonomy_v6`, quantum-labelled Bugs-QCP samples are evaluated alongside Bugs4Q.
 - In `classical`, Bugs-QCP is the primary labelled binary dataset containing both `classical` and `quantum` bugs.
 
+### External Study I JSON
+
+Study I uses a separate labeled bug-report JSON file containing triples of:
+
+- `name`
+- `description`
+- `example_code` or `code`
+
+Each record is filtered to `bug_category ∈ {classical, quantum}` before
+training.
+
 ### Release-Note Source Repositories
 
 The new tracks also depend on upstream source repositories:
@@ -36,6 +64,78 @@ The new tracks also depend on upstream source repositories:
 - `classical`: Qiskit, Qiskit Aer, PennyLane, CPython, NumPy.
 
 These repositories are not vendored into this project. The CLIs expect them to be cloned under a user-provided `--work-dir`.
+
+## `study_i` Track
+
+### Task
+
+Study I is binary classification:
+
+- `quantum`: the defect is in quantum-specific circuit semantics
+- `classical`: the defect is in conventional software logic embedded inside a
+  quantum program
+
+The input is a text triple `(name, description, code)` concatenated into a
+single sequence and passed to `microsoft/codebert-base`.
+
+### Dataset Construction
+
+- `src/study_i/dataset.py` loads the external JSON list.
+- It keeps only records with `bug_category` equal to `classical` or `quantum`.
+- It converts each item into a `StudyISample(sample_id, name, description, code, label, metadata)`.
+- It joins the three textual fields with newline separators to build the model
+  input text.
+
+### Model And Training Protocol
+
+`src/study_i/training.py` implements the notebook protocol:
+
+- pretrained backbone: `microsoft/codebert-base`
+- inverse-frequency class-weighted cross-entropy
+- label smoothing `0.05`
+- minority oversampling inside each training fold
+- 5-fold stratified cross-validation
+- 5 independent CV seeds
+- 25 fold-runs total
+- per-fold stratified validation split of `10%`
+- manual early stopping on validation macro-F1 with patience `4`
+
+The current refactor keeps the notebook hyperparameters:
+
+- max length `256`
+- learning rate `2e-5`
+- batch size `8`
+- weight decay `0.05`
+- warmup ratio `0.15`
+- dropout `0.2`
+- max epochs `12`
+
+### Outputs
+
+`scripts/run_study_i_codebert.py` writes:
+
+- `summary.json`
+- `per_fold.csv`
+- `epoch_logs.json`
+- `fig1_confusion_matrix.png`
+- `fig2_fold_distribution.png`
+- `fig3_roc_curve.png`
+- `fig4_learning_curves.png`
+- `fig5_summary_panel.png`
+
+### Notebook Results Preserved In The Docs
+
+From the executed `quantum-vs-classical-bug-prediction.ipynb` notebook:
+
+- dataset size: `233` labeled samples
+- class balance: `134` classical / `99` quantum
+- repeated-CV accuracy: `0.767 ± 0.057`
+- repeated-CV macro-F1: `0.763 ± 0.056`
+- repeated-CV ROC-AUC: `0.855 ± 0.044`
+- pooled per-class F1:
+  - `classical`: `0.7875`
+  - `quantum`: `0.7410`
+  - pooled macro-F1: `0.7642`
 
 ## `taxonomy_v6` Track
 
@@ -167,7 +267,7 @@ This is still useful for the earlier project workflow, but it is now only one of
 
 ## Notebook Parity
 
-The new module/script refactors preserve the core computational flow from both notebooks:
+The new module/script refactors preserve the core computational flow from the notebook studies:
 
 - loaders;
 - KB builders;
