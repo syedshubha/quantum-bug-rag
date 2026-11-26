@@ -23,7 +23,7 @@ This file now serves as the canonical documentation index. The previous copy-and
 | Path | Purpose |
 |------|---------|
 | [`scripts/run_study_i_codebert.py`](../scripts/run_study_i_codebert.py) | Refactored CLI for `quantum-vs-classical-bug-prediction.ipynb` |
-| [`scripts/run_taxonomy_v6.py`](../scripts/run_taxonomy_v6.py) | Refactored CLI for `quantum_bug_detecttion_taxonomy.ipynb` |
+| [`scripts/run_taxonomy_v6.py`](../scripts/run_taxonomy_v6.py) | Refactored CLI for `quantum_bug_detection_taxonomy.ipynb` |
 | [`scripts/run_classical_vs_quantum.py`](../scripts/run_classical_vs_quantum.py) | Refactored CLI for `quantum-software-bug-detection-rag-project-v6_classical.ipynb` |
 | [`scripts/run_rag.py`](../scripts/run_rag.py) | Legacy scaffold RAG run |
 | [`scripts/run_prompt_only.py`](../scripts/run_prompt_only.py) | Legacy scaffold prompt-only run |
@@ -34,7 +34,7 @@ This file now serves as the canonical documentation index. The previous copy-and
 | Notebook | Refactored code |
 |----------|-----------------|
 | [`quantum-vs-classical-bug-prediction.ipynb`](../quantum-vs-classical-bug-prediction.ipynb) | `src/study_i/` and `scripts/run_study_i_codebert.py` |
-| [`quantum_bug_detecttion_taxonomy.ipynb`](../quantum_bug_detecttion_taxonomy.ipynb) | `src/taxonomy_v6/` and `scripts/run_taxonomy_v6.py` |
+| [`quantum_bug_detection_taxonomy.ipynb`](../quantum_bug_detection_taxonomy.ipynb) | `src/taxonomy_v6/` and `scripts/run_taxonomy_v6.py` |
 | [`quantum-software-bug-detection-rag-project-v6_classical.ipynb`](../quantum-software-bug-detection-rag-project-v6_classical.ipynb) | `src/classical/` and `scripts/run_classical_vs_quantum.py` |
 
 ## Refactor Coverage Notes

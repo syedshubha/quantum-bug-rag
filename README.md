@@ -4,7 +4,7 @@ Research code for LLM-based bug analysis in quantum software. The repository now
 
 - the original modular scaffold for prompt-only, RAG, and static-baseline experiments over prepared `Bugs4Q` data;
 - a modular Study I binary classifier refactored from `quantum-vs-classical-bug-prediction.ipynb`;
-- a refactored five-class taxonomy track from `quantum_bug_detecttion_taxonomy.ipynb`;
+- a refactored five-class taxonomy track from `quantum_bug_detection_taxonomy.ipynb`;
 - a refactored binary classical-vs-quantum track from `quantum-software-bug-detection-rag-project-v6_classical.ipynb`.
 
 The notebooks are still kept as provenance and exploratory-analysis artifacts. The reusable implementations now live under `src/study_i`, `src/taxonomy_v6`, `src/classical`, and matching `scripts/` entry points.
@@ -24,7 +24,7 @@ The notebooks are still kept as provenance and exploratory-analysis artifacts. T
 quantum-bug-rag/
 ├── README.md
 ├── quantum-vs-classical-bug-prediction.ipynb
-├── quantum_bug_detecttion_taxonomy.ipynb
+├── quantum_bug_detection_taxonomy.ipynb
 ├── quantum-software-bug-detection-rag-project-v6_classical.ipynb
 ├── src/
 │   ├── ...                         # legacy scaffold modules

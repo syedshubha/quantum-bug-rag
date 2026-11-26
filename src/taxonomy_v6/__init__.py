@@ -1,7 +1,7 @@
 """
 taxonomy_v6 — Five-class quantum bug taxonomy classification.
 
-This sub-package refactors the ``quantum_bug_detecttion_taxonomy.ipynb`` notebook
+This sub-package refactors the ``quantum_bug_detection_taxonomy.ipynb`` notebook
 into reusable modules. The pipeline is forced-choice (no "no-bug" outcome): the
 input is assumed buggy, and the classifier must assign one of five classes.
 

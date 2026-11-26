@@ -237,3 +237,6 @@ external_data/
 
 #GPT-API
 .env
+
+# macOS
+.DS_Store

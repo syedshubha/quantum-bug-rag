@@ -16,7 +16,7 @@ The repository has four distinct experiment paths:
 The paper-facing studies are `study_i` and `taxonomy_v6`. The notebook-refactored tracks were introduced to preserve the experimental logic of:
 
 - `quantum-vs-classical-bug-prediction.ipynb`
-- `quantum_bug_detecttion_taxonomy.ipynb`
+- `quantum_bug_detection_taxonomy.ipynb`
 - `quantum-software-bug-detection-rag-project-v6_classical.ipynb`
 
 while making them scriptable and reusable.
